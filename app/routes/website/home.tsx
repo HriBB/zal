@@ -2,6 +2,7 @@ import { Form, Link } from 'react-router'
 
 import type { Route } from './+types/home'
 
+import { sanityImageUrl } from '~/lib/image-url'
 import { buildMeta, ZAL_NAME, ZAL_ORIGIN } from '~/lib/meta'
 import { buildOrganizationJsonLd } from '~/lib/jsonld'
 import { loadSanity } from '~/sanity/data.server'
@@ -70,7 +71,7 @@ function HeroSection({ homePage }: { homePage: HomePageData | null }) {
   const lead =
     homePage?.hero?.lead ??
     'Pet enot, več kot 11.000 tekočih metrov gradiva, od listine iz leta 1320 do digitalnih zapisov.'
-  const imgUrl = homePage?.hero?.image?.asset?.url
+  const imgUrl = sanityImageUrl(homePage?.hero?.image?.asset?.url, { w: 1920, auto: 'format', q: 80 })
 
   return (
     <section aria-label="Hero" className="relative">
@@ -79,6 +80,7 @@ function HeroSection({ homePage }: { homePage: HomePageData | null }) {
           src={imgUrl}
           alt={homePage?.hero?.image?.alt ?? ''}
           className="w-full h-[420px] object-cover"
+          fetchPriority="high"
         />
       ) : (
         <div className="w-full h-[420px] bg-stone-800" />
@@ -194,9 +196,10 @@ function UnitStrip({ units }: { units: ArchiveUnitSummary[] }) {
           >
             {unit.photo?.asset?.url ? (
               <img
-                src={unit.photo.asset.url}
+                src={sanityImageUrl(unit.photo.asset.url, { w: 400, auto: 'format', q: 75 }) ?? unit.photo.asset.url}
                 alt={unit.photo.alt ?? unit.name}
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                loading="lazy"
               />
             ) : (
               <div className="absolute inset-0 bg-stone-300" />
@@ -219,9 +222,10 @@ function ArhavalijaBand({ post }: { post: PostSummary | null }) {
       <div className="container-page py-12 grid md:grid-cols-2 gap-8 items-center">
         {post.mainImage?.asset?.url && (
           <img
-            src={post.mainImage.asset.url}
+            src={sanityImageUrl(post.mainImage.asset.url, { w: 900, auto: 'format', q: 80 }) ?? post.mainImage.asset.url}
             alt={post.mainImage.alt}
             className="rounded-lg shadow-2xl max-h-80 object-cover w-full"
+            loading="lazy"
           />
         )}
         <div>

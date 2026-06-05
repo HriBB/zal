@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { sanityImageUrl } from '~/lib/image-url'
+
 export type FigureData = {
   _key: string
   alt?: string | null
@@ -155,7 +157,7 @@ export function ImageGallery({ figures }: { figures: FigureData[] }) {
             >
               {fig.asset?.url ? (
                 <img
-                  src={fig.asset.url}
+                  src={sanityImageUrl(fig.asset.url, { w: 400, auto: 'format', q: 80 }) ?? fig.asset.url}
                   alt={fig.alt ?? ''}
                   className="aspect-square w-full object-cover transition-opacity group-hover:opacity-90"
                   loading="lazy"

@@ -2,6 +2,7 @@ import { Link, useLoaderData } from 'react-router'
 
 import type { Route } from './+types/enote.$slug'
 
+import { sanityImageUrl } from '~/lib/image-url'
 import { buildMeta } from '~/lib/meta'
 import { loadSanity } from '~/sanity/data.server'
 import { archiveUnitQuery } from '~/sanity/queries'
@@ -50,9 +51,10 @@ export default function EnoteDetailRoute() {
       {unit.photo?.asset?.url && (
         <div className="mb-8 overflow-hidden rounded-lg">
           <img
-            src={unit.photo.asset.url}
+            src={sanityImageUrl(unit.photo.asset.url, { w: 900, auto: 'format', q: 80 }) ?? unit.photo.asset.url}
             alt={unit.photo.alt ?? unit.name}
             className="h-64 w-full object-cover"
+            fetchPriority="high"
           />
         </div>
       )}

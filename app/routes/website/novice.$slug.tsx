@@ -3,6 +3,7 @@ import { Link, useLoaderData } from 'react-router'
 import type { Route } from './+types/novice.$slug'
 
 import { BlockList } from '~/components/blocks/BlockRenderer'
+import { sanityImageUrl } from '~/lib/image-url'
 import { buildMeta, ZAL_ORIGIN } from '~/lib/meta'
 import { buildNewsArticleJsonLd } from '~/lib/jsonld'
 import { loadSanity } from '~/sanity/data.server'
@@ -65,9 +66,10 @@ export default function NoviceDetailRoute() {
       {post.mainImage?.asset?.url && (
         <div className="mb-8 overflow-hidden rounded-lg">
           <img
-            src={post.mainImage.asset.url}
+            src={sanityImageUrl(post.mainImage.asset.url, { w: 1200, auto: 'format', q: 80 }) ?? post.mainImage.asset.url}
             alt={post.mainImage.alt}
             className="h-72 w-full object-cover sm:h-96"
+            fetchPriority="high"
           />
         </div>
       )}

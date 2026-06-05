@@ -828,3 +828,52 @@ outline > 0, accordion keyboard Enter activates.
   works without the override. Future fresh sandboxes will need this one-time setup.
 - All prior notes about `[@portabletext/react] Unknown block type "figure"` warnings,
   pending full scrape, and one-time seed re-runs remain outstanding.
+
+---
+
+## 2026-06-05 — Issue #19: Perf pass (sanityImageUrl CDN transforms, fetchpriority, lazy loading, preconnect)
+
+**Agent-completable part of HITL issue**: performance pass (Lighthouse-relevant wins) without
+requiring a running browser or human sign-off. The visual side-by-side review and prototype
+deletion still require human action.
+
+**Built**:
+- **`app/lib/image-url.ts`**: `sanityImageUrl(url, opts)` pure helper — appends Sanity CDN
+  image transformation query params (`w`, `h`, `auto`, `q`, `fit`) to any CDN URL. Returns
+  `null` for null/empty input. 10 unit tests RED→GREEN.
+- **`app/root.tsx`**: `<link rel="preconnect" href="https://cdn.sanity.io">` — eliminates
+  DNS + TLS setup overhead before the first image request.
+- **Hero image** (`home.tsx`): `?w=1920&auto=format&q=80` (full-width, WebP served by CDN)
+  + `fetchPriority="high"` — signals browser to prioritize the LCP element.
+- **Unit strip photos** (`home.tsx`): `?w=400&auto=format&q=75` (3/4 grid thumbnails)
+  + `loading="lazy"` — below fold, deferred.
+- **Arhivalija band image** (`home.tsx`): `?w=900&auto=format&q=80` + `loading="lazy"`.
+- **Post mainImage on detail page** (`novice.$slug.tsx`): `?w=1200&auto=format&q=80`
+  + `fetchPriority="high"` — LCP on article pages.
+- **Post thumbnails in listing** (`novice.tsx`): `?w=600&auto=format&q=75`.
+- **Arhivalija listing thumbnails** (`arhivalija-meseca.tsx`): `?w=160&auto=format&q=75`.
+- **Unit photo** (`enote.$slug.tsx`): `?w=900&auto=format&q=80` + `fetchPriority="high"`.
+- **Gallery thumbnails** (`ImageGallery.tsx`): `?w=400&auto=format&q=80` (already lazy).
+- **`react-router.config.ts`**: added RR v8 future flags (pre-existing working-tree
+  modification already present at session start — included in this commit).
+
+**TDD**: RED→GREEN on `image-url.test.ts` (10 tests: null/undefined/empty, w/auto/q/h+fit,
+combined params, existing params merge, no-opts passthrough).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (25 files, 248 tests — 10 new),
+`pnpm build` ✓, `pnpm test:e2e` ✓ (59 tests, all passing).
+
+**Human action required (issue remains open)**:
+- Side-by-side visual review of the live app against `prototype/` (variant A) and either
+  fix deviations or explicitly accept them as differences.
+- Run `pnpm build && pnpm start` and check key templates against the prototype screenshot.
+- Record human sign-off on the issue.
+- After sign-off: delete the `prototype/` folder and close issue #19.
+
+**Notes**:
+- `auto=format` tells the Sanity CDN to serve WebP to browsers that support it (all modern
+  browsers), with JPEG fallback — no code changes needed, purely CDN-level.
+- Lightbox full-resolution images intentionally NOT resized — users expect full quality
+  when opening the lightbox viewer.
+- The `[@portabletext/react] Unknown block type "figure"` warning, pending full scrape,
+  and seed re-runs are still outstanding from prior iterations.

@@ -2,6 +2,7 @@ import { Link, useLoaderData } from 'react-router'
 
 import type { Route } from './+types/arhivalija-meseca'
 
+import { sanityImageUrl } from '~/lib/image-url'
 import { buildMeta } from '~/lib/meta'
 import { loadSanity } from '~/sanity/data.server'
 import { arhivaListQuery } from '~/sanity/queries'
@@ -34,7 +35,7 @@ export default function ArhivalijaRoute() {
             <li key={post._id} className="flex items-start gap-4 py-5">
               {post.mainImage?.asset?.url && (
                 <img
-                  src={post.mainImage.asset.url}
+                  src={sanityImageUrl(post.mainImage.asset.url, { w: 160, auto: 'format', q: 75 }) ?? post.mainImage.asset.url}
                   alt={post.mainImage.alt}
                   className="h-20 w-20 flex-shrink-0 rounded object-cover"
                   loading="lazy"
