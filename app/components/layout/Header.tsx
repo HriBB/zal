@@ -1,6 +1,7 @@
+import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 
-import type { NavItem } from '~/sanity/queries'
+import type { NavChild, NavItem } from '~/sanity/queries'
 
 type Props = { nav: NavItem[] }
 
@@ -23,20 +24,15 @@ export function Header({ nav }: Props) {
         </Link>
         <nav aria-label="Glavna navigacija">
           <ul className="flex items-center gap-6">
-            {nav.map((item) => (
-              <li key={item._key} className="relative group">
-                <NavLink item={item} />
-                {item.children && item.children.length > 0 && (
-                  <ul className="bg-background border-border absolute left-0 top-full z-50 hidden min-w-48 flex-col gap-1 rounded-md border p-2 shadow-md group-hover:flex">
-                    {item.children.map((child) => (
-                      <li key={child._key}>
-                        <NavLink item={child} className="block px-3 py-1.5 text-sm" />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
+            {nav.map((item) =>
+              item.children && item.children.length > 0 ? (
+                <DropdownNavItem key={item._key} item={item} />
+              ) : (
+                <li key={item._key}>
+                  <NavLink item={item} />
+                </li>
+              ),
+            )}
           </ul>
         </nav>
       </div>
@@ -44,11 +40,45 @@ export function Header({ nav }: Props) {
   )
 }
 
+function DropdownNavItem({ item }: { item: NavItem }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLLIElement>(null)
+
+  const handleBlur = (e: React.FocusEvent) => {
+    if (!ref.current?.contains(e.relatedTarget as Node)) {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <li
+      ref={ref}
+      data-dropdown=""
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={handleBlur}
+    >
+      <NavLink item={item} />
+      {open && (
+        <ul className="bg-background border-border absolute left-0 top-full z-50 flex min-w-48 flex-col gap-1 rounded-md border p-2 shadow-md">
+          {(item.children ?? []).map((child) => (
+            <li key={child._key}>
+              <NavLink item={child} className="block px-3 py-1.5 text-sm" />
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
 function NavLink({
   item,
   className = 'text-muted-foreground hover:text-foreground text-sm',
 }: {
-  item: { label: string; linkType?: string; href?: string; url?: string }
+  item: NavChild
   className?: string
 }) {
   if (item.linkType === 'external' && item.url) {

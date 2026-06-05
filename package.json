@@ -21,7 +21,8 @@
     "seed:digiteka": "node --experimental-strip-types scripts/seed-digiteka.ts",
     "seed:scans": "node --experimental-strip-types scripts/seed-scans.ts",
     "seed:home": "node --experimental-strip-types scripts/seed-home-page.ts",
-    "gen:redirects": "node --experimental-strip-types scripts/gen-redirects.ts"
+    "gen:redirects": "node --experimental-strip-types scripts/gen-redirects.ts",
+    "seed:izjava": "node --experimental-strip-types scripts/seed-izjava.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",

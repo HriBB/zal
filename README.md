@@ -39,6 +39,52 @@ pnpm dev          # dev server (Vite) at http://localhost:5173
 
 First E2E run needs the browser: `pnpm exec playwright install chromium`.
 
+## Accessibility gate (WCAG 2.1 AA)
+
+Slovenian public institutions are legally required to meet WCAG 2.1 AA under the EU Web Accessibility Directive. The quality gate is **Lighthouse accessibility ≥ 95** on the five key templates.
+
+### How to run
+
+Requires the production server running (`pnpm build && pnpm start`) or a deployed preview URL.
+
+```sh
+# Install Lighthouse CLI once
+npm install -g lighthouse
+
+# Run against each key template (adjust origin as needed)
+lighthouse http://localhost:3000/ --only-categories=accessibility --output=json --output-path=lh-home.json
+lighthouse http://localhost:3000/novice --only-categories=accessibility --output=json --output-path=lh-novice.json
+lighthouse http://localhost:3000/digiteka --only-categories=accessibility --output=json --output-path=lh-digiteka.json
+lighthouse http://localhost:3000/iskanje --only-categories=accessibility --output=json --output-path=lh-iskanje.json
+```
+
+Or use Lighthouse CI for batch runs:
+
+```sh
+npx @lhci/cli autorun --collect.url=http://localhost:3000/ \
+  --collect.url=http://localhost:3000/novice \
+  --collect.url=http://localhost:3000/iskanje \
+  --assert.assertions."categories:accessibility".minScore=0.95
+```
+
+### Threshold
+
+| Metric                | Gate    |
+| --------------------- | ------- |
+| Lighthouse a11y score | ≥ 95    |
+| WCAG level            | 2.1 AA  |
+
+Run Lighthouse after any change to HTML structure, focus styles, ARIA attributes, or color tokens. Include in pre-release CI on the staging URL.
+
+### Accessibility statement
+
+The `/izjava-o-dostopnosti` page is required by law. Seed the draft, review the legal wording, then publish from Studio:
+
+```sh
+pnpm seed:izjava   # seeds as Sanity draft — NOT published yet
+# → open /studio → Pages → "Izjava o dostopnosti" → review → Publish
+```
+
 ## Docker
 
 ```sh
