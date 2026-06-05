@@ -448,6 +448,80 @@ export const archiveUnitQuery = defineSanityQuery<ArchiveUnitData | null, { slug
   }`,
 )
 
+// ── Sitemap ───────────────────────────────────────────────────────────────────
+
+export type SitemapPage = {
+  slug: string
+  parentSlug: string | null
+  grandParentSlug: string | null
+  greatGrandParentSlug: string | null
+  _updatedAt: string
+}
+
+export type SitemapPost = {
+  slug: string
+  _updatedAt: string
+}
+
+export type SitemapCollection = {
+  slug: string
+  _updatedAt: string
+}
+
+export type SitemapArchiveItem = {
+  slug: string
+  collectionSlug: string
+  _updatedAt: string
+}
+
+export const sitemapPagesQuery = defineSanityQuery<SitemapPage[]>(
+  `*[_type == "page"] | order(_updatedAt asc){
+    "slug": slug.current,
+    "parentSlug": parent->slug.current,
+    "grandParentSlug": parent->parent->slug.current,
+    "greatGrandParentSlug": parent->parent->parent->slug.current,
+    _updatedAt
+  }`,
+)
+
+export const sitemapPostsQuery = defineSanityQuery<SitemapPost[]>(
+  `*[_type == "post"] | order(_updatedAt asc){
+    "slug": slug.current,
+    _updatedAt
+  }`,
+)
+
+export const sitemapCollectionsQuery = defineSanityQuery<SitemapCollection[]>(
+  `*[_type == "collection"] | order(_updatedAt asc){
+    "slug": slug.current,
+    _updatedAt
+  }`,
+)
+
+export const sitemapArchiveItemsQuery = defineSanityQuery<SitemapArchiveItem[]>(
+  `*[_type == "archiveItem"] | order(_updatedAt asc){
+    "slug": slug.current,
+    "collectionSlug": collection->slug.current,
+    _updatedAt
+  }`,
+)
+
+// ── RSS feed ──────────────────────────────────────────────────────────────────
+
+export type RssFeedPost = {
+  title: string
+  slug: string
+  date: string
+}
+
+export const rssFeedQuery = defineSanityQuery<RssFeedPost[]>(
+  `*[_type == "post"] | order(date desc)[0..49]{
+    title,
+    "slug": slug.current,
+    date
+  }`,
+)
+
 // ── Search ────────────────────────────────────────────────────────────────────
 
 // Re-export so routes only need to import from queries.

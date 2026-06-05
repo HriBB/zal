@@ -26,4 +26,8 @@ export default [
   route('studio/*', './routes/studio.tsx'),
   // Resource routes (Visual Editing preview toggle).
   ...prefix('resource', [route('preview', './routes/resource/preview.ts')]),
+  // Static resource routes.
+  route('sitemap.xml', './routes/sitemap[.]xml.tsx'),
+  route('robots.txt', './routes/robots[.]txt.tsx'),
+  route('rss.xml', './routes/rss[.]xml.tsx'),
 ] satisfies RouteConfig

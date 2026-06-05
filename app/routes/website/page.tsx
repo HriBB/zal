@@ -1,9 +1,11 @@
-import { isRouteErrorResponse, useLoaderData } from 'react-router'
+import { isRouteErrorResponse, redirect, useLoaderData } from 'react-router'
 
 import type { Route } from './+types/page'
 
 import { BlockList } from '~/components/blocks/BlockRenderer'
 import { Breadcrumbs } from '~/components/Breadcrumbs'
+import redirectMap from '~/data/redirects.json'
+import { normalizeOldPath } from '~/lib/redirects'
 import { matchesChain } from '~/lib/page-chain'
 import { loadSanity } from '~/sanity/data.server'
 import { pageQuery } from '~/sanity/queries'
@@ -14,6 +16,13 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   if (segments.length === 0) {
     throw new Response('Not Found', { status: 404 })
+  }
+
+  // Check redirect map before attempting page lookup (ADR-0003).
+  const oldPath = normalizeOldPath(`/${path}`)
+  const newPath = (redirectMap as Record<string, string>)[oldPath]
+  if (newPath) {
+    return redirect(newPath, 301)
   }
 
   const slug = segments[segments.length - 1]!
