@@ -29,7 +29,20 @@ export type EmbedPageBlock = {
   url: string
 }
 
-export type PageBlock = RichTextPageBlock | TablePageBlock | EmbedPageBlock
+export type GalleryPageFigure = {
+  _key: string
+  url: string
+  alt: string
+  caption?: string
+}
+
+export type GalleryPageBlock = {
+  _type: 'galleryBlock'
+  _key: string
+  figures: GalleryPageFigure[]
+}
+
+export type PageBlock = RichTextPageBlock | TablePageBlock | EmbedPageBlock | GalleryPageBlock
 
 export type PageSeedDoc = {
   _id: string
@@ -93,19 +106,33 @@ function oldPathFromLink(link: string): string {
   }
 }
 
+type GalleriesData = Record<string, { scans: Array<{ sourceUrl: string; localPath: string }> }>
+
+function makeFigures(images: Array<{ url: string; alt: string; caption?: string }>, offset: number): GalleryPageFigure[] {
+  return images.map((img, i) => ({
+    _key: `fig-${offset + i}`,
+    url: img.url,
+    alt: img.alt,
+    ...(img.caption ? { caption: img.caption } : {}),
+  }))
+}
+
 /**
  * Map a WP page REST object to a Sanity page seed document.
- * @param page     WP REST page object
- * @param cleanSlug  Pre-computed clean slug for this page
- * @param parentRef  Sanity _id of the parent page, or null for top-level
+ * @param page      WP REST page object
+ * @param cleanSlug Pre-computed clean slug for this page
+ * @param parentRef Sanity _id of the parent page, or null for top-level
+ * @param galleries Optional galleries.json data for resolving ngg placeholders
  */
 export function wpPageToPageDoc(
   page: WpPage,
   cleanSlug: string,
   parentRef: string | null,
+  galleries?: GalleriesData,
 ): PageSeedDoc {
   const segments = splitHtmlSegments(page.content.rendered ?? '')
   const blocks: PageBlock[] = []
+  let figOffset = 0
 
   for (const segment of segments) {
     if (segment.kind === 'table') {
@@ -123,6 +150,29 @@ export function wpPageToPageDoc(
         _key: `eb-${blocks.length}`,
         url: segment.src,
       })
+    } else if (segment.kind === 'gallery') {
+      if (segment.images.length > 0) {
+        blocks.push({
+          _type: 'galleryBlock',
+          _key: `gb-${blocks.length}`,
+          figures: makeFigures(segment.images, figOffset),
+        })
+        figOffset += segment.images.length
+      }
+    } else if (segment.kind === 'ngg') {
+      const entry = galleries?.[cleanSlug]
+      const scans = entry?.scans ?? []
+      if (scans.length > 0) {
+        blocks.push({
+          _type: 'galleryBlock',
+          _key: `gb-${blocks.length}`,
+          figures: makeFigures(
+            scans.map((s) => ({ url: s.sourceUrl, alt: '' })),
+            figOffset,
+          ),
+        })
+        figOffset += scans.length
+      }
     } else {
       const { portableText } = cleanWpHtml(segment.html)
       if (portableText.length > 0) {

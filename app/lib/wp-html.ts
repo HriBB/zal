@@ -42,7 +42,7 @@ export type PortableTextFigure = {
 export type PortableTextNode = PortableTextBlock | PortableTextFigure
 
 export type GalleryImage = {
-  src: string
+  url: string
   alt: string
   caption?: string
 }
@@ -239,7 +239,7 @@ export function cleanWpHtml(html: string | null | undefined): CleanedWpHtml {
     const src = imageSrc(tag)
     if (!src) return
     const alt = attr(tag, 'alt') ?? ''
-    gallery.push({ src, alt, ...(caption ? { caption } : {}) })
+    gallery.push({ url: src, alt, ...(caption ? { caption } : {}) })
     blocks.push({
       _type: 'figure',
       _key: `b${blocks.length}`,
@@ -334,6 +334,8 @@ export type HtmlSegment =
   | { kind: 'prose'; html: string }
   | { kind: 'table'; html: string }
   | { kind: 'embed'; src: string }
+  | { kind: 'gallery'; images: GalleryImage[] }
+  | { kind: 'ngg'; nth: number }
 
 function flattenCellHtml(html: string): string {
   return decodeEntities(html.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
@@ -418,7 +420,33 @@ function iframeSrc(tag: string): string | undefined {
 
 type RawSegment = { start: number; end: number; seg: HtmlSegment }
 
-/** Split HTML into interleaved prose, table, and embed segments (document order). */
+const GALLERY_ITEM_FULL_RE =
+  /et_pb_gallery_item[\s\S]*?<a\b([^>]*)>([\s\S]*?)<\/a>/gi
+
+function galleryItemImages(html: string): GalleryImage[] {
+  const images: GalleryImage[] = []
+  GALLERY_ITEM_FULL_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = GALLERY_ITEM_FULL_RE.exec(html)) !== null) {
+    const anchorAttrs = m[1]
+    const anchorInner = m[2]
+    const href = attr(`<a ${anchorAttrs}>`, 'href')
+    if (!href) continue
+    const url = normalizeHost(href)
+    const imgM = anchorInner.match(/<img\b([^>]*)>/i)
+    const imgAlt = imgM ? (attr(imgM[0], 'alt') ?? '') : ''
+    const title = attr(`<a ${anchorAttrs}>`, 'title') ?? ''
+    const alt = imgAlt || title
+    const image: GalleryImage = { url, alt }
+    if (title) image.caption = title
+    images.push(image)
+  }
+  return images
+}
+
+const NGG_PLACEHOLDER_RE = /ngg_shortcode_(\d+)_placeholder/g
+
+/** Split HTML into interleaved prose, table, embed, gallery, and ngg segments (document order). */
 export function splitHtmlSegments(html: string): HtmlSegment[] {
   const raw: RawSegment[] = []
 
@@ -434,6 +462,42 @@ export function splitHtmlSegments(html: string): HtmlSegment[] {
     if (src) {
       raw.push({ start: m.index, end: iframeRe.lastIndex, seg: { kind: 'embed', src } })
     }
+  }
+
+  // Detect et_pb_gallery_item spans; cluster adjacent items into one gallery segment
+  GALLERY_ITEM_FULL_RE.lastIndex = 0
+  const galleryMatches: Array<{ start: number; end: number }> = []
+  while ((m = GALLERY_ITEM_FULL_RE.exec(html)) !== null) {
+    galleryMatches.push({ start: m.index, end: GALLERY_ITEM_FULL_RE.lastIndex })
+  }
+  if (galleryMatches.length > 0) {
+    // Merge overlapping/adjacent items (within 2048 chars) into one gallery span
+    const clusters: Array<{ start: number; end: number }> = []
+    let cur = { ...galleryMatches[0] }
+    for (let i = 1; i < galleryMatches.length; i++) {
+      const next = galleryMatches[i]
+      if (next.start - cur.end < 2048) {
+        cur.end = next.end
+      } else {
+        clusters.push(cur)
+        cur = { ...next }
+      }
+    }
+    clusters.push(cur)
+    for (const { start, end } of clusters) {
+      const galleryHtml = html.slice(start, end)
+      const images = galleryItemImages(galleryHtml)
+      if (images.length > 0) {
+        raw.push({ start, end, seg: { kind: 'gallery', images } })
+      }
+    }
+  }
+
+  // Detect ngg_shortcode_N_placeholder occurrences
+  NGG_PLACEHOLDER_RE.lastIndex = 0
+  while ((m = NGG_PLACEHOLDER_RE.exec(html)) !== null) {
+    const nth = Number(m[1])
+    raw.push({ start: m.index, end: NGG_PLACEHOLDER_RE.lastIndex, seg: { kind: 'ngg', nth } })
   }
 
   raw.sort((a, b) => a.start - b.start)

@@ -144,7 +144,7 @@ describe('cleanWpHtml', () => {
       '<p><img src="https://www.zal-lj.si/files/photo.jpg" alt="Opis" /></p>'
     const result = cleanWpHtml(html)
     expect(result.gallery).toHaveLength(1)
-    expect(result.gallery[0].src).toBe('https://www.zal-lj.si/files/photo.jpg')
+    expect(result.gallery[0].url).toBe('https://www.zal-lj.si/files/photo.jpg')
     expect(result.gallery[0].alt).toBe('Opis')
     const fig = result.portableText[0]
     expect(fig._type).toBe('figure')
@@ -154,7 +154,7 @@ describe('cleanWpHtml', () => {
     const html =
       '<p><img src="https://www.zal-lj.si/files/photo-300x200.jpg" alt="A" /></p>'
     const result = cleanWpHtml(html)
-    expect(result.gallery[0].src).toBe(
+    expect(result.gallery[0].url).toBe(
       'https://www.zal-lj.si/files/photo.jpg',
     )
   })
@@ -163,7 +163,7 @@ describe('cleanWpHtml', () => {
     const html =
       '<p><img src="http://zal-lj.splet.arnes.si/files/photo.jpg" alt="A" /></p>'
     const result = cleanWpHtml(html)
-    expect(result.gallery[0].src).toBe('https://www.zal-lj.si/files/photo.jpg')
+    expect(result.gallery[0].url).toBe('https://www.zal-lj.si/files/photo.jpg')
   })
 
   test('returns empty portableText for empty or null input', () => {
@@ -330,5 +330,36 @@ describe('splitHtmlSegments', () => {
     expect(segments).toHaveLength(2)
     expect(segments[0].kind).toBe('table')
     expect(segments[1].kind).toBe('embed')
+  })
+
+  test('et_pb_gallery_item anchor produces a gallery segment with images', () => {
+    const html =
+      '<div class="et_pb_gallery_item"><a href="https://www.zal-lj.si/files/img.jpg"><img alt="X" src=""></a></div>'
+    const segments = splitHtmlSegments(html)
+    const galleries = segments.filter((s) => s.kind === 'gallery')
+    expect(galleries).toHaveLength(1)
+    if (galleries[0].kind === 'gallery') {
+      expect(galleries[0].images).toHaveLength(1)
+      expect(galleries[0].images[0].url).toBe('https://www.zal-lj.si/files/img.jpg')
+    }
+  })
+
+  test('ngg_shortcode_0_placeholder text produces an ngg segment', () => {
+    const segments = splitHtmlSegments('ngg_shortcode_0_placeholder')
+    const nggSegs = segments.filter((s) => s.kind === 'ngg')
+    expect(nggSegs).toHaveLength(1)
+    if (nggSegs[0].kind === 'ngg') {
+      expect(nggSegs[0].nth).toBe(0)
+    }
+  })
+
+  test('gallery segment comes after prose segment in document order', () => {
+    const html =
+      '<p>Intro</p>' +
+      '<div class="et_pb_gallery_item"><a href="https://x.com/img.jpg"><img alt="Y" src=""></a></div>'
+    const segments = splitHtmlSegments(html)
+    expect(segments[0].kind).toBe('prose')
+    const galleryIdx = segments.findIndex((s) => s.kind === 'gallery')
+    expect(galleryIdx).toBeGreaterThan(0)
   })
 })

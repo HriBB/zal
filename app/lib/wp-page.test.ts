@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { cleanSlugForPage, wpPageToPageDoc } from './wp-page'
-import type { EmbedPageBlock, RichTextPageBlock, TablePageBlock } from './wp-page'
+import type { EmbedPageBlock, GalleryPageBlock, RichTextPageBlock, TablePageBlock } from './wp-page'
 
 // ── cleanSlugForPage ───────────────────────────────────────────────────────────
 
@@ -185,5 +185,54 @@ describe('wpPageToPageDoc – embed blocks', () => {
     const doc = wpPageToPageDoc(page, 'kontakti', null)
     const eb = doc.blocks[0] as EmbedPageBlock
     expect(eb.url).toBe('https://api.mapbox.com/styles?token=abc&fresh=true')
+  })
+})
+
+// ── wpPageToPageDoc – gallery blocks ──────────────────────────────────────────
+
+const GALLERY_ITEM_HTML =
+  '<div class="et_pb_gallery_item"><a href="https://x.com/img.jpg"><img alt="Slika" src=""></a></div>'
+
+describe('wpPageToPageDoc – gallery blocks', () => {
+  test('et_pb_gallery_item HTML produces a galleryBlock', () => {
+    const page = { ...mockWpPage, content: { rendered: GALLERY_ITEM_HTML } }
+    const doc = wpPageToPageDoc(page, 'galerija', null)
+    const gb = doc.blocks.filter((b) => b._type === 'galleryBlock')
+    expect(gb).toHaveLength(1)
+  })
+
+  test('galleryBlock figures contain the image URL', () => {
+    const page = { ...mockWpPage, content: { rendered: GALLERY_ITEM_HTML } }
+    const doc = wpPageToPageDoc(page, 'galerija', null)
+    const gb = doc.blocks.find((b) => b._type === 'galleryBlock') as GalleryPageBlock
+    expect(gb.figures).toHaveLength(1)
+    expect(gb.figures[0].url).toBe('https://x.com/img.jpg')
+  })
+
+  test('ngg_shortcode_0_placeholder resolved via galleries fixture', () => {
+    const galleries = {
+      'my-page': {
+        scans: [
+          { sourceUrl: 'https://x.com/scan1.jpg', localPath: 'scans/my-page/scan1.jpg' },
+        ],
+      },
+    }
+    const page = { ...mockWpPage, content: { rendered: 'ngg_shortcode_0_placeholder' } }
+    const doc = wpPageToPageDoc(page, 'my-page', null, galleries)
+    const gb = doc.blocks.find((b) => b._type === 'galleryBlock') as GalleryPageBlock
+    expect(gb).toBeDefined()
+    expect(gb.figures).toHaveLength(1)
+    expect(gb.figures[0].url).toBe('https://x.com/scan1.jpg')
+  })
+
+  test('document order preserved: prose before gallery', () => {
+    const page = {
+      ...mockWpPage,
+      content: { rendered: '<p>Intro</p>' + GALLERY_ITEM_HTML },
+    }
+    const doc = wpPageToPageDoc(page, 'galerija', null)
+    expect(doc.blocks.length).toBeGreaterThanOrEqual(2)
+    expect(doc.blocks[0]._type).toBe('richTextBlock')
+    expect(doc.blocks[doc.blocks.length - 1]._type).toBe('galleryBlock')
   })
 })

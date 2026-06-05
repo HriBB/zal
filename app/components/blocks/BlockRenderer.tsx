@@ -1,7 +1,5 @@
 import { blockRegistry } from './blockRegistry'
 
-import type { BlockComponentProps } from './blockRegistry'
-
 type Block = {
   _type: string
   _key: string

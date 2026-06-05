@@ -13,6 +13,7 @@ export const figureType = defineType({
       title: 'Opis slike (alt)',
       type: 'string',
       description: 'Obvezen za dostopnost in SEO.',
+      validation: (r) => r.required(),
     }),
     defineField({
       name: 'caption',

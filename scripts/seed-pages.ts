@@ -11,19 +11,20 @@
  */
 
 import 'dotenv/config'
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createClient } from '@sanity/client'
 
 import { cleanSlugForPage, WP_SKIP_IDS, wpPageToPageDoc } from '../app/lib/wp-page.ts'
-import type { RichTextPageBlock } from '../app/lib/wp-page.ts'
+import type { GalleryPageBlock, GalleryPageFigure, RichTextPageBlock } from '../app/lib/wp-page.ts'
 import { cutDiviFooter } from '../app/lib/wp-html.ts'
 import type { PortableTextNode } from '../app/lib/wp-html.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
+const DOWNLOAD_ROOT = join(ROOT, '../download')
 
 // ── Sanity client ────────────────────────────────────────────────────────────
 
@@ -93,6 +94,56 @@ const CONTENT_PROJECTS: Record<string, { parent: string | null }> = {
   'gradivo-za-zgodovino-ljubljane-v-srednjem-veku-iii': { parent: 'page.publikacije' },
   'gradivo-za-zgodovino-ljubljane-v-srednjem-veku-iv': { parent: 'page.publikacije' },
   'gradivo-za-zgodovino-ljubljane-v-srednjem-veku-viii-register-kristofove-bratovscine-v-ljubljani-1489-1518': { parent: 'page.publikacije' },
+}
+
+// ── Load galleries data ───────────────────────────────────────────────────────
+
+type GalleryScan = { sourceUrl: string; localPath: string }
+type GalleryEntry = { scans: GalleryScan[] }
+type GalleriesData = Record<string, GalleryEntry>
+
+const GALLERIES_JSON = join(DOWNLOAD_ROOT, 'galleries.json')
+const galleries: GalleriesData = existsSync(GALLERIES_JSON)
+  ? (JSON.parse(readFileSync(GALLERIES_JSON, 'utf-8')) as GalleriesData)
+  : {}
+
+// ── Disk-based gallery asset memo (localPath → Sanity assetId) ───────────────
+// Persisted across runs so re-seeding uploads nothing already uploaded.
+
+const GALLERY_MEMO_JSON = join(DOWNLOAD_ROOT, 'gallery-asset-memo.json')
+const diskMemo: Map<string, string> = new Map(
+  existsSync(GALLERY_MEMO_JSON)
+    ? Object.entries(JSON.parse(readFileSync(GALLERY_MEMO_JSON, 'utf-8')) as Record<string, string>)
+    : [],
+)
+
+function saveDiskMemo() {
+  if (dry) return
+  writeFileSync(GALLERY_MEMO_JSON, JSON.stringify(Object.fromEntries(diskMemo), null, 2))
+}
+
+async function uploadFromDisk(localPath: string, alt: string): Promise<string | null> {
+  if (dry) return null
+  const cached = diskMemo.get(localPath)
+  if (cached) return cached
+
+  const absPath = join(DOWNLOAD_ROOT, localPath)
+  if (!existsSync(absPath)) {
+    console.warn(`  [gallery-upload] disk file not found: ${localPath}`)
+    return null
+  }
+
+  try {
+    const buffer = readFileSync(absPath)
+    const filename = basename(localPath)
+    const asset = await client.assets.upload('image', buffer, { filename, label: alt })
+    diskMemo.set(localPath, asset._id)
+    saveDiskMemo()
+    return asset._id
+  } catch (err) {
+    console.warn(`  [gallery-upload] failed ${localPath}: ${(err as Error).message}`)
+    return null
+  }
 }
 
 // ── Image upload memo (URL → Sanity asset _id) ───────────────────────────────
@@ -189,6 +240,37 @@ function buildSlugMap(allPages: WpPage[]) {
   return { cleanSlugs, parentRefFor, depthOf }
 }
 
+// ── Resolve galleryBlock figures from local disk ──────────────────────────────
+
+async function resolveGalleryFigures(
+  figures: GalleryPageFigure[],
+  slug: string,
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = []
+  const entry = galleries[slug]
+  for (const fig of figures) {
+    // Find localPath by matching sourceUrl in the galleries.json entry
+    const scan = entry?.scans?.find((s) => s.sourceUrl === fig.url)
+    const localPath = scan?.localPath
+    if (localPath) {
+      const assetId = await uploadFromDisk(localPath, fig.alt)
+      if (assetId) {
+        out.push({
+          _type: 'figure',
+          _key: fig._key,
+          asset: { _type: 'reference', _ref: assetId },
+          alt: fig.alt || ' ',
+          ...(fig.caption ? { caption: fig.caption } : {}),
+        })
+        continue
+      }
+    }
+    // Fallback: skip figure if no disk file found
+    console.warn(`  [gallery] skipping figure without disk asset: ${fig.url}`)
+  }
+  return out
+}
+
 // ── Build final seed doc with resolved image assets ──────────────────────────
 
 async function buildSeedDoc(
@@ -196,7 +278,7 @@ async function buildSeedDoc(
   cleanSlug: string,
   parentRef: string | null,
 ) {
-  const mapped = wpPageToPageDoc(wpPage, cleanSlug, parentRef)
+  const mapped = wpPageToPageDoc(wpPage, cleanSlug, parentRef, galleries)
 
   const blocks = []
   for (const block of mapped.blocks) {
@@ -205,8 +287,16 @@ async function buildSeedDoc(
       const body = rtb.body as PortableTextNode[]
       const resolvedBody = body.length ? await resolveBodyFigures(body) : body
       blocks.push({ ...rtb, body: resolvedBody })
+    } else if (block._type === 'galleryBlock') {
+      const gb = block as GalleryPageBlock
+      const resolvedFigures = await resolveGalleryFigures(gb.figures, cleanSlug)
+      if (resolvedFigures.length > 0) {
+        blocks.push({ ...gb, figures: resolvedFigures })
+      } else {
+        console.warn(`  [gallery] no resolved figures for ${cleanSlug} — skipping galleryBlock`)
+      }
     } else {
-      // tableBlock and future block types pass through unchanged
+      // tableBlock, embedBlock pass through unchanged
       blocks.push(block)
     }
   }

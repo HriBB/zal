@@ -107,6 +107,14 @@ export const pageQuery = defineSanityQuery<PageData | null, { slug: string }>(
       },
       _type == "embedBlock" => {
         url
+      },
+      _type == "galleryBlock" => {
+        figures[]{
+          _key,
+          alt,
+          caption,
+          asset->{_id, url, metadata{lqip, dimensions}}
+        }
       }
     }
   }`,
