@@ -33,15 +33,19 @@ ralph_sandbox_ensure() {
     set -euo pipefail
     # Ubuntu's corepack shim is broken under node 22; install pnpm directly.
     sudo npm install -g pnpm@10 --silent
-    # gh requires *a* local token; the sbx proxy swaps it for the stored github
-    # secret in flight, so a placeholder suffices — no real credential lands here.
-    echo sbx-proxy-placeholder | gh auth login --with-token
+    # sbx injects a placeholder GH_TOKEN and its proxy swaps it for the stored
+    # github secret in flight — no real credential lands here. setup-git wires
+    # git's credential helper to gh so HTTPS pushes authenticate the same way.
     gh auth setup-git
     git config --global user.name '$git_name'
     git config --global user.email '$git_email'
     # Host remotes use SSH but the sandbox has no keys. Rewrite to HTTPS in the
     # container-local gitconfig so pushes go through gh's credential helper + proxy.
+    # Covers the plain form and the 'github-personal' ssh alias; 'github-work' is
+    # deliberately NOT rewritten — the stored sbx github secret is the personal
+    # account, and a silent rewrite would push work repos with the wrong identity.
     git config --global url.'https://github.com/'.insteadOf 'git@github.com:'
+    git config --global --add url.'https://github.com/'.insteadOf 'git@github-personal:'
     # Expose host user skills (mounted ro, if at all) to the sandboxed claude.
     if [ -d /Users/bojan/.agents/skills ]; then
       mkdir -p ~/.claude && ln -sfn /Users/bojan/.agents/skills ~/.claude/skills

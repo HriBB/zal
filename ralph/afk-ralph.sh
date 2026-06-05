@@ -30,8 +30,9 @@ for ((i=1; i<=N; i++)); do
   log="ralph/iteration-$ts.log"
   echo "===== Ralph AFK iteration $i/$N -> $log ====="
 
-  sbx run "$SANDBOX" -- \
-    -p "/tdd $(cat ralph/PROMPT.md)" \
+  { printf '/tdd '; cat ralph/PROMPT.md; } | \
+    sbx exec -i -w /Users/bojan/www/zal/website "$SANDBOX" \
+    claude -p \
     --model claude-sonnet-4-6 \
     --dangerously-skip-permissions \
     --add-dir /Users/bojan/www/zal \

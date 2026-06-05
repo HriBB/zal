@@ -25,8 +25,9 @@ ralph_sandbox_ensure "$SANDBOX" \
   /Users/bojan/.agents/skills:ro || exit 1
 
 echo "===== Ralph (HITL) single iteration -> $log ====="
-sbx run "$SANDBOX" -- \
-  -p "/tdd $(cat ralph/PROMPT.md)" \
+{ printf '/tdd '; cat ralph/PROMPT.md; } | \
+  sbx exec -i -w /Users/bojan/www/zal/website "$SANDBOX" \
+  claude -p \
   --model claude-sonnet-4-6 \
   --dangerously-skip-permissions \
   --add-dir /Users/bojan/www/zal \
