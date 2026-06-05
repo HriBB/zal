@@ -450,3 +450,59 @@ prior + 5 new — unit page renders, breadcrumb, 404, footer accordion present +
   field exists in the schema; editors can upload via Studio.
 - Footer accordion uses plain `hidden` boolean (not CSS transition) for simplicity.
   A CSS transition can be added later without any schema or route changes.
+
+---
+
+## 2026-06-05 — Issue #11: Digiteka browse (collection + archiveItem, mapper, routes, seed)
+
+**Built** the complete Digiteka browse vertical slice:
+
+- **`app/lib/wp-digiteka.ts`**: pure mapper seam — `extractMetadataPairs` (strong-tag
+  `Label:` / value pairs, cuts at `id="kontakt"`; extracts all 8 charter descriptors:
+  Datum in kraj, Vsebina, Original ali kopija, Snov, Velikost, Ohranjenost, Pečat,
+  Objave), `extractCollectionFromBreadcrumb` (handles both `/project/slug/` and direct-path
+  `/slug/` hrefs — the existing `breadcrumbToCollection` in scrape-gallery.ts only handles
+  `/project/` and missed `korespondenca_terpinc` which uses `/korespondenca_terpinc/`),
+  `isPageProject` (20 sitemap-linked slugs excluded), `wpProjectToArchiveItemDoc`
+  (stable `archiveItem.{slug}` ids, metadata[], gallery:[] placeholder).
+- **`app/lib/wp-digiteka.test.ts`**: 14 unit tests RED→GREEN (all 8 charter descriptors,
+  no-pairs letters, kontakt cut, /project/ collection, direct-path collection, null cases,
+  isPageProject, full mapper).
+- **Sanity schema**: `collectionType` (name/slug/externalUrl/_oldPath), `archiveItemType`
+  (title/slug/collection ref/metadata[]/gallery[]/externalUrl/date/_oldPath). Both
+  registered in `schemaTypes/index.ts`; Studio desk updated (Zbirke + Arhivalije).
+- **Schema tests**: 4 collection + 7 archiveItem shape tests RED→GREEN.
+- **`app/sanity/queries.ts`**: `collectionsQuery`, `collectionQuery`, `archiveItemListQuery`
+  (paginated by collectionId, 12/page), `archiveItemQuery` (by slug + collectionSlug).
+- **Routes**: `/digiteka` (collection listing grid), `/digiteka/:collection` (12/page items +
+  SIstory external link when present), `/digiteka/:collection/:item` (metadata `<dl>`,
+  gallery thumbnails, SIstory link). All wired before catch-all in `routes.ts`.
+- **`scripts/seed-digiteka.ts`**: 4 collections hardcoded from breadcrumb analysis +
+  503 archive items from 702 WP projects (199 skipped: GZL items not in Digiteka,
+  census placeholders, 20 sitemap Pages). `createOrReplace` idempotent. `pnpm seed:digiteka`.
+- **`e2e/digiteka.spec.ts`**: 6 E2E tests (landing → collection → item chain, listine
+  metadata definition list, 404 for unknown collection/item).
+
+**TDD**: RED→GREEN per seam — `wp-digiteka.ts` mapper (14 tests), collection schema
+(4 tests), archiveItem schema (7 tests). Total 25 new tests.
+
+**Results**: `pnpm typecheck ✓`, `pnpm test ✓` (15 files, 164 tests),
+`pnpm build ✓`, `pnpm seed:digiteka ✓` (4 collections + 503 items, 0 failures),
+`pnpm test:e2e ✓` (28 tests: 22 prior + 6 new Digiteka).
+
+**Deferred / notes for next iteration**:
+- 199 WP projects skipped (no Digiteka breadcrumb): includes GZL items (breadcrumb
+  goes through "Publikacije na spletu" not Digiteka), census placeholders (kranj-2,
+  jesenice — empty content), collection landing pages (arhivski-kuharski-rokovnik,
+  korespondenca_terpinc as index pages). These are NOT archive items for Digiteka.
+- `korespondenca_terpinc` is unusual: 214 items in this collection have a direct-path
+  collection URL (`/korespondenca_terpinc/`). The `extractCollectionFromBreadcrumb`
+  fix handles this correctly. The existing `breadcrumbToCollection` in scrape-gallery.ts
+  still has the limitation (don't modify — it's stable and tested for its scrape use case).
+- Full coverage of all 682 non-sitemap projects would require the full gallery scrape
+  (`pnpm scrape`) to populate `galleries.json`, then re-run seed. The scrape output
+  provides collection info for items not in the REST breadcrumb.
+- Gallery field seeded empty (issue #12 fills it via the scan upload pass).
+- `externalUrl` on archiveItem: seeded empty for all 503 items (no SIstory-linked
+  individual archive items found in the current WP dump). The field is in schema
+  for future use and for editors.
