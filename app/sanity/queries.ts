@@ -1,4 +1,7 @@
 import { defineSanityQuery } from '~/sanity/data'
+import type {
+  SearchResults,
+} from '~/lib/search'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -442,5 +445,41 @@ export const archiveUnitQuery = defineSanityQuery<ArchiveUnitData | null, { slug
       asset->{_id, url, metadata{lqip, dimensions}}
     },
     description
+  }`,
+)
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+// Re-export so routes only need to import from queries.
+export type { SearchResults, SearchPageResult, SearchPostResult, SearchCollectionResult, SearchArchiveItemResult } from '~/lib/search'
+
+export const searchQuery = defineSanityQuery<SearchResults, { term: string }>(
+  `{
+    "pages": *[_type == "page" && title match $term][0..9]{
+      _id,
+      title,
+      "slug": slug.current,
+      "parentSlug": parent->slug.current
+    },
+    "posts": *[_type == "post" && title match $term][0..9]{
+      _id,
+      title,
+      "slug": slug.current,
+      date
+    },
+    "collections": *[_type == "collection" && name match $term][0..9]{
+      _id,
+      name,
+      "slug": slug.current
+    },
+    "archiveItems": *[_type == "archiveItem" && (
+      title match $term ||
+      count(metadata[value match $term]) > 0
+    )][0..9]{
+      _id,
+      title,
+      "slug": slug.current,
+      "collectionSlug": collection->slug.current
+    }
   }`,
 )

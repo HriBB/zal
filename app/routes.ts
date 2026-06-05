@@ -16,6 +16,8 @@ export default [
     route('digiteka', './routes/website/digiteka.tsx'),
     route('digiteka/:collection', './routes/website/digiteka.$collection.tsx'),
     route('digiteka/:collection/:item', './routes/website/digiteka.$collection.$item.tsx'),
+    // Search.
+    route('iskanje', './routes/website/iskanje.tsx'),
     // Catch-all page route — resolves nested pages via parent chain (ADR-0004).
     // Must come last so specific routes above take priority.
     route('*', './routes/website/page.tsx'),
