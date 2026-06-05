@@ -39,3 +39,50 @@ behavior assertions: falsy filtering + Tailwind-conflict last-wins (so `classNam
 - `pnpm dev` not exercised (no long-running servers per Ralph rules); same RR toolchain as
   build/start which are verified.
 - First Playwright run needs `pnpm exec playwright install chromium`.
+
+---
+
+## 2026-06-05 — Issue #3: Gallery scrape script (NextGEN scans + breadcrumb→collection map)
+
+**Built** the standalone scrape pass that recovers what the WP REST dump can't (the
+`ngg_shortcode` placeholder hides every Digiteka gallery — ADR 0002):
+- `app/lib/scrape-gallery.ts` — pure, unit-tested seam (network-free): `normalizeHost`
+  (arnes→www), `extractGalleryUrls` (anchor-href originals from both NextGEN
+  `blogs.dir/<id>/files/` and the Divi `et_pb_gallery` on /galerija/; drops thumbs/logo
+  chrome, strips WP `-300x200` resize suffixes, dedups in document order),
+  `extractBreadcrumb` + `breadcrumbToCollection` (Domov > Digiteka > **collection** >
+  item; null when an item sits directly under Digiteka or has no breadcrumb),
+  `scanLocalPath` (`scans/<slug>/<file>`).
+- `scripts/scrape-galleries.ts` — orchestration (fetch/throttle/download/disk only). Work
+  list = 659 ngg projects + galerija + filmoteka (= **661 targets**). Resumable: skips
+  slugs already recorded `ok` and scans already on disk; persists `galleries.json` after
+  every target. Env knobs: `SCRAPE_SLUGS`, `SCRAPE_LIMIT`, `SCRAPE_DELAY` (default 400ms),
+  `SCRAPE_DOWNLOAD=0` (index only), `SCRAPE_FORCE=1`. `pnpm scrape` script added.
+- Outputs are DATA → written OUTSIDE the repo under `/Users/bojan/www/zal/download/`:
+  `galleries.json` (slug → {url, status, collection, breadcrumb, item, scans:[{sourceUrl,
+  localPath}]}), `scrape-failures.json` ([{slug,url,error}]), `scans/<slug>/…`.
+
+**TDD**: red→green per pure function (12 tests in `scrape-gallery.test.ts`) — host norm,
+full-res-not-thumbs, logo skip, Divi resize-strip, dedup/order, breadcrumb parse + the
+two collection edge cases (direct-under-Digiteka, no-breadcrumb), local path.
+
+**Live smoke** (against www.zal-lj.si): `cod-i-knjiga-43-1674` → 20 scans, collection
+`kodeksi`, host normalised; real download = 20 files / 3.5 MB / 0 thumbs; re-run skips
+(index + on-disk). `galerija` (Divi) → 12 scans, collection null. `filmoteka` → 200, 0
+scans (its films are video embeds — slice #7's embed block, not scans).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (2 files, 14 tests), `pnpm lint` ✓,
+`pnpm build` ✓ (added `allowImportingTsExtensions` to tsconfig so the script can import the
+`.ts` seam under `node --experimental-strip-types`, mirroring letece-kele).
+
+**Deferred / notes for next iteration**:
+- The FULL harvest (all 661 targets + their binaries) is a one-time, network-heavy DATA op
+  — run `pnpm scrape` to completion when ready; it's resumable, so partial state is fine.
+  So far only `cod-i-knjiga-43-1674` (+galerija/filmoteka index) are seeded in
+  `download/galleries.json`; the rest still need a run.
+- Divi `et_pb_gallery` pages link originals straight out of `/files/` (no NextGEN
+  container) — the extractor handles both, but if a future ngg page nests galleries
+  differently, re-check `extractGalleryUrls`.
+- `breadcrumbToCollection` returns only the immediate parent collection; the full
+  `breadcrumb` text array is also stored, so the seed (issues #11/#12) can reconstruct a
+  deeper chain if one ever appears.
