@@ -506,3 +506,44 @@ prior + 5 new — unit page renders, breadcrumb, 404, footer accordion present +
 - `externalUrl` on archiveItem: seeded empty for all 503 items (no SIstory-linked
   individual archive items found in the current WP dump). The field is in schema
   for future use and for editors.
+
+---
+
+## 2026-06-05 — Issue #12: Digiteka scans (resumable upload, item gallery + lightbox)
+
+**Built** the scan upload pass and upgraded the archive item page gallery:
+
+- **`app/lib/upload-retry.ts`**: `withRetry<T>(fn, {maxAttempts, baseDelayMs})` — exponential
+  backoff retry helper. 4 unit tests RED→GREEN (success on first try, retry on transient,
+  exhausted → throws, defaults).
+- **`app/components/ImageGallery.tsx`**: shared component extracted from GalleryBlock —
+  responsive CSS grid (`grid-cols-2 sm:3 md:4`) + keyboard-accessible lightbox (focus trap,
+  Escape closes, arrow keys navigate, `role="dialog" aria-modal="true"`). Exports `FigureData`
+  type. GalleryBlock now delegates to it — prior gallery E2E tests pass unchanged.
+- **`app/routes/website/digiteka.$collection.$item.tsx`**: gallery section replaced with
+  `<ImageGallery>`, giving archive item pages the same accessible lightbox as page galleries.
+  Figures mapped from `item.gallery` to `FigureData[]`.
+- **`scripts/seed-scans.ts`**: reads `galleries.json`; filters `type=project` entries with
+  scans; uploads each scan from disk using `withRetry` (3×, 500ms base); checks
+  `gallery-asset-memo.json` first (skips already-uploaded); patches `archiveItem.{slug}`
+  via `client.patch(...).set({gallery})`. Memo persisted after every item → resumable mid-run.
+  Failures per scan are reported and non-fatal. `SEED_DRY=1` / `SEED_SLUGS=a,b` env knobs.
+- **`package.json`**: `seed:scans` script added.
+- **`e2e/digiteka-scans.spec.ts`**: 2 new E2E tests — gallery renders with at least one image
+  button, lightbox opens on Enter and closes on Escape.
+
+**Seed run**: `cod-i-knjiga-43-1674` (kodeksi) — 20 scans uploaded from disk, gallery patched.
+Second run: 0 new uploads (all from memo). Idempotency confirmed.
+
+**Results**: `pnpm typecheck ✓`, `pnpm test ✓` (16 files, 168 tests — 4 new), `pnpm build ✓`,
+`pnpm test:e2e ✓` (30 tests: 28 prior + 2 new).
+
+**Deferred / notes for next iteration**:
+- Only `cod-i-knjiga-43-1674` has scans on disk so far. Full scan coverage requires running
+  `pnpm scrape` to completion (all 661 targets), then re-running `pnpm seed:scans`.
+  Both are resumable: scrape skips already-downloaded files; seed-scans skips memoised assets.
+- `galerija` slug in galleries.json has type=page (not project) — correctly filtered out by
+  seed-scans. Its 12 scans are on disk for when it's needed as a page gallery (already seeded
+  via seed-pages / galleryBlock in issue #8).
+- The `[@portabletext/react] Unknown block type "figure"` console warning from prior iterations
+  persists — cosmetic only (figure inside richTextBlock body not rendered). Still deferred.
