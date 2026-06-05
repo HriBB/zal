@@ -1,0 +1,28 @@
+{
+  "printWidth": 84,
+  "tabWidth": 2,
+  "semi": false,
+  "singleQuote": true,
+  "useTabs": false,
+  "plugins": [
+    "@ianvs/prettier-plugin-sort-imports",
+    "prettier-plugin-tailwindcss"
+  ],
+  "importOrder": [
+    "<BUILTIN_MODULES>",
+    "",
+    "^react(.*)$",
+    "<THIRD_PARTY_MODULES>",
+    "",
+    "<TYPES>^(node:)",
+    "<TYPES>",
+    "<TYPES>^[.]",
+    "",
+    "^~/lib/(.*)$",
+    "^~/constants/(.*)$",
+    "",
+    "^~/components/(.*)$",
+    "",
+    "^[.]"
+  ]
+}

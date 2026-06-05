@@ -1,0 +1,108 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/inter/index.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Variant A "Institucionalna" brand tokens ----
+   Primary red #8b1d1c (logo), secondary #ba3741 (live-site CSS),
+   Inter type, white surfaces with stone-50 alternate sections,
+   coal #171412 footer. Pairings below are AA-contrast safe. */
+:root {
+  --zal: #8b1d1c; /* primary — logo red */
+  --zal-light: #ba3741; /* secondary red */
+  --paper: #faf6ee; /* warm paper wash */
+  --ink: #23201c; /* near-black body text */
+  --coal: #171412; /* footer surface */
+  --stone-50: #fafaf9; /* alternate section surface */
+  --stone-200: #e7e5e4; /* hairline borders */
+  --stone-300: #d6d3d1; /* footer body text on coal */
+
+  --font-body: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  /* shadcn semantic tokens mapped onto the brand palette */
+  --background: #ffffff;
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--zal);
+  --primary-foreground: #ffffff;
+  --secondary: var(--zal-light);
+  --secondary-foreground: #ffffff;
+  --muted: var(--stone-50);
+  --muted-foreground: #57534e; /* stone-600 — AA on white & stone-50 */
+  --accent: var(--stone-50);
+  --accent-foreground: var(--ink);
+  --destructive: #b3261e;
+  --border: var(--stone-200);
+  --input: var(--stone-200);
+  --ring: var(--zal);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --font-sans: var(--font-body);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* brand colors usable as bg-zal, text-zal-light, bg-coal, etc. */
+  --color-zal: var(--zal);
+  --color-zal-light: var(--zal-light);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-coal: var(--coal);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-full: 9999px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-sans font-semibold tracking-tight text-balance;
+    line-height: 1.15;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10;
+  }
+  .section {
+    @apply py-16 sm:py-20 lg:py-24;
+  }
+}
