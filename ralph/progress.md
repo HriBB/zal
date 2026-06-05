@@ -86,3 +86,55 @@ scans (its films are video embeds — slice #7's embed block, not scans).
 - `breadcrumbToCollection` returns only the immediate parent collection; the full
   `breadcrumb` text array is also stored, so the seed (issues #11/#12) can reconstruct a
   deeper chain if one ever appears.
+
+---
+
+## 2026-06-05 — Issue #4: Sanity wiring (embedded Studio, intake seam, siteSettings, CMS-driven chrome)
+
+**Built** the full Sanity integration tracer:
+- Packages added: `@sanity/client`, `@sanity/react-loader`, `sanity`, `@sanity/icons`,
+  `@sanity/vision`, `@sanity/visual-editing`, `dotenv`.
+- `app/sanity/` seam: `constants.ts` (`STUDIO_BASEPATH=/studio`), `projectDetails.ts`
+  (env → window.ENV → import.meta.env cascade), `client.ts` (tokenless CDN),
+  `client.server.ts` (read-token authenticated, server-only), `loader.server.ts`
+  (setServerClient + stega config), `loadQueryOptions.server.ts` (cookie→perspective,
+  SANITY_READ_TOKEN guard), `data.ts` (`SanityQuery` descriptor + `useSanity`),
+  `data.server.ts` (`loadSanity`: params default, notFoundIfEmpty 404, withPreview toggle).
+- `app/sanity/queries.ts`: `siteSettingsQuery` + `SiteSettings` / `NavItem` / `FooterLink`
+  / `SocialLink` types.
+- `app/sanity/schemaTypes/singletons/siteSettings.ts`: two-level nav (internal/external
+  per item), footerLinks, socialLinks, externalArchiveLinks.
+- `app/sanity/desk/index.ts`: Studio structure — singleton editor for siteSettings.
+- `app/sanity/presentation/resolve.ts`: Presentation location.
+- `sanity.shared.ts` + `sanity.config.ts`: shared Studio config (structureTool +
+  presentationTool + visionTool); CLI entry reads from SANITY_STUDIO_* / SANITY_* env.
+- `app/components/SanityStudio.tsx`: in-app Studio with Vite env vars.
+- `app/routes/studio.tsx`: `/studio/*` route (noindex meta).
+- `app/routes/resource/preview.ts`: GET enables preview cookie (session.set projectId),
+  POST destroys it.
+- `app/routes.ts`: added `studio/*` and `resource/preview` routes.
+- `app/routes/website/layout.tsx`: loads siteSettings via `loadSanity`, passes to
+  Header/Footer.
+- `Header.tsx`: two-level nav with hover dropdown; external links open in new tab.
+- `Footer.tsx`: three-column grid (identity+social / useful links / external archives).
+- `app/root.tsx`: root loader exposes `VITE_SANITY_*` as `window.ENV` for client bundle.
+- `scripts/seed-site-settings.ts`: idempotent (`createIfNotExists` default; `SEED_FORCE=1`
+  → `createOrReplace`); full ZAL navigation + footer links derived from old site IA.
+  Ran successfully against Sanity production.
+
+**TDD**: 2 new test files (RED→GREEN):
+- `loadQueryOptions.server.test.ts` — 3 tests: published/drafts/missing-token.
+- `data.server.test.ts` — 5 tests: param forward, default-params, notFoundIfEmpty
+  (null/exists), withPreview flag.
+
+**Results**: `pnpm test` ✓ (4 files, 22 tests), `pnpm typecheck` ✓, `pnpm build` ✓,
+`pnpm test:e2e` ✓ (1 test, nav+footer landmarks), `pnpm seed` ✓.
+
+**Notes for next iteration**:
+- Studio is embedded but Visual Editing (click-to-edit overlays) is deferred to issue #17.
+- `window.ENV` is injected by the root loader but NOT yet inlined as a `<script>` tag
+  (client-side JS reads `window.ENV` only after hydration — the `projectDetails.ts`
+  cascade falls back to `import.meta.env` which Vite handles at build time, so this
+  works; but a strict CSP may need the script tag approach later).
+- Issue #5 (Pages tracer) is the next ready slice — it needs the `loadSanity` seam that
+  now exists, so no blockers.
