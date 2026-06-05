@@ -734,3 +734,50 @@ trailing-slash 301, sitemap 200+XML, robots 200+sitemap ref, rss 200+envelope).
   If per-page descriptions are needed, add a `description` field to the `page` schema
   and update `pageQuery` + `buildMeta` call in `page.tsx`.
 - Issue #17 (Visual Editing) is the only remaining open `ready-for-agent` issue.
+
+---
+
+## 2026-06-05 — Issue #17: Visual editing (Presentation locations, SanityLiveMode, ExitPreview, VisualEditing overlays)
+
+**Built** the full visual editing integration:
+
+- **`app/sanity/presentation/url-builders.ts`**: pure URL-builder seam — `buildPagePreviewUrl`
+  (walks ancestor chain up to 3 levels), `buildPostPreviewUrl` (`/novice/:slug`),
+  `buildArchiveItemPreviewUrl` (`/digiteka/:collection/:slug`), `buildCollectionPreviewUrl`
+  (`/digiteka/:slug`). 7 unit tests RED→GREEN.
+- **`app/sanity/presentation/resolve.ts`**: rewrote from stub to full `DocumentLocationResolver`
+  covering all 7 document types (page, post, homePage, archiveItem, collection, archiveUnit,
+  siteSettings). Page resolver GROQ fetches 2-level parent chain and uses url-builders to produce
+  the correct nested URL. `mainDocuments` map added for Presentation route→document pinning
+  (covers `/`, `/novice/:slug`, `/digiteka/:collection/:item`, `/digiteka/:collection`,
+  `/enote/:slug`, `/:slug`). Removed `defineLocations` from function-based resolver (it returns
+  `DocumentLocationResolverObject` which is not in the `DocumentLocationResolver` return union
+  — return raw `DocumentLocationsState` objects instead).
+- **`app/components/SanityLiveMode.tsx`**: `useLiveMode` component — opens live WebSocket
+  connection to Studio so `useQuery` subscriptions stream content edits in real time. Renders
+  nothing; side-effect only.
+- **`app/components/ExitPreview.tsx`**: floating "Izhod iz predogleda" POST form button.
+  Detects iframe context via `window.self !== window.top` (hydration-safe: starts `inIframe=true`
+  to match SSR, flips after mount). Hidden inside Studio iframe.
+- **`app/routes/website/layout.tsx`**: loader now uses `withPreview: true` on siteSettingsQuery
+  to expose the `preview` boolean. Component switches from `loaderData.xxx.initial.data` to
+  `useSanity(...)` for live Header/Footer data. Conditional rendering of
+  `SanityLiveMode + ExitPreview + VisualEditing` when `preview=true`.
+- **`rxjs`**: added as devDependency — `resolve.ts` is Studio-only code bundled by Sanity's
+  build, but TypeScript needs the types at compile time. Was already in lockfile as peer dep.
+- **`e2e/visual-editing.spec.ts`**: 3 new E2E tests — zero `data-sanity` stega attrs in
+  published HTML, no exit button in published mode, POST /resource/preview returns 3xx.
+
+**TDD**: RED→GREEN on url-builders seam (7 tests).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (24 files, 238 tests — 7 new),
+`pnpm build` ✓, `pnpm test:e2e` ✓ (53 tests: 50 prior + 3 new).
+
+**Notes for next iteration**:
+- No more `ready-for-agent` issues. The full build slice sequence (#2–#17) is complete.
+- Full Presentation preview requires the dev server running (`pnpm dev`) with `.env` tokens.
+  E2E tests only cover published mode; preview mode tested manually via Studio.
+- `[@portabletext/react] Unknown block type "figure"` console warning persists from prior
+  iterations — figure-inside-richTextBlock rendering is cosmetic only.
+- The full scrape (`pnpm scrape`) and associated re-seeds (seed:digiteka, seed:scans) are
+  one-time data ops to be run when ready; they're resumable and idempotent.
