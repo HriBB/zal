@@ -138,3 +138,58 @@ scans (its films are video embeds — slice #7's embed block, not scans).
   works; but a strict CSP may need the script tag approach later).
 - Issue #5 (Pages tracer) is the next ready slice — it needs the `loadSanity` seam that
   now exists, so no blockers.
+
+---
+
+## 2026-06-05 — Issue #5: Pages tracer (richText block, WP mapper, nested URL resolution, seed)
+
+**Built** the complete vertical page slice end-to-end:
+
+- **`app/lib/wp-html.ts`**: `cleanWpHtml` — Divi footer cut at `id="kontakt"`, host normalise
+  (`zal-lj.splet.arnes.si` → `www.zal-lj.si`), entity decode (Slovenian diacritics &#353;=š
+  etc.), shortcode strip (`[gallery]`, `[et_pb_*]`), `<style>` strip, WP resize suffix strip.
+  Returns `{portableText, gallery}`. 15 unit tests.
+- **`app/lib/wp-page.ts`**: `wpPageToPageDoc` maps WP REST page → Sanity seed doc
+  (`page.{slug}` stable ids, `_oldPath`, parent refs). `WP_CLEAN_SLUG` overrides numeric
+  suffixes; `WP_SKIP_IDS` omits containers. 7 unit tests.
+- **`app/lib/page-chain.ts`**: `matchesChain` — strict ADR-0004 chain validation; wrong
+  length or wrong ancestor → false → 404. 7 unit tests.
+- **Sanity schema**: `figure` (image + alt + caption), `richTextBlock` (h2/h3/blockquote/
+  bullet/number/link/figure), `page` (title/slug/parent ref/blocks/`_oldPath`). Schema types
+  registered in `index.ts`.
+- **Block registry SSOT** (`blockRegistry.ts`): `{ richTextBlock: RichTextBlock }`. Page
+  schema derives `blocks` field from `Object.keys(blockRegistry)` — schema + renderer cannot
+  drift. 2 SSOT guard tests.
+- **`RichTextBlock.tsx`**: renders h2/h3/h1→h2/blockquote/lists/links via
+  `@portabletext/react`. h1 from WP content is demoted to h2 since the page route owns h1.
+- **`BlockRenderer.tsx`**: `BlockList` dispatches through registry by `_type`.
+- **`Breadcrumbs.tsx`**: cumulative paths `[topmost..directParent]` from GROQ ancestors.
+- **`routes/website/page.tsx`**: catch-all `'*'` route. Loader splits URL into segments,
+  queries by last segment, then validates full ancestor chain. Wrong chain → 404. Includes
+  `ErrorBoundary` for 404 + generic errors.
+- **`pageQuery`**: GROQ with 3-level `parent->parent->slug.current` chain + filtered
+  breadcrumbs array.
+- **`client.server.ts`**: added `useCdn: false` — bypasses CDN for freshly written docs.
+- **`scripts/seed-pages.ts`**: topological sort (parents before children for referential
+  integrity), per-URL image upload memo, idempotent `createOrReplace`, 116 docs written.
+  20 image upload failures for encoded filenames (Sanity "Bad Request") — silently skipped.
+- **`start` script fix**: `NODE_ENV=production node -r dotenv/config` wraps `react-router-serve`
+  to load `.env`. Required because `@sanity/react-loader`'s `loadQuery` for `perspective:
+  'published'` uses `resultSourceMap: 'withKeyArraySelector'` which silently returns `null`
+  without a valid bearer token — queries never error, they just return empty results.
+
+**TDD**: red→green per seam — `wp-html`, `wp-page`, `page-chain`, `blockRegistry` SSOT guard.
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (8 files, 67 tests), `pnpm build` ✓,
+`pnpm test:e2e` ✓ (5 tests: home + 2-level + 3-level pages, 404-unknown, 404-wrong-chain).
+
+**Notes for next iteration**:
+- 20 image uploads failed (Sanity "Bad Request" on certain encoded filenames); figures
+  are silently skipped so those pages render without their images. Re-run with cleaned
+  filenames or fetch via the Sanity asset API if images are needed.
+- `@portabletext/react` logs "Unknown block type 'figure'" at runtime — figure rendering
+  in the RichTextBlock is not yet wired (issue #6 or later). Cosmetic console warning only.
+- The `start` script uses `node -r dotenv/config` for local E2E; in a production deploy
+  environment variables should be injected by the platform (not .env file).
+- h1 blocks from WP content are demoted to h2 in the renderer — this is intentional.
+  If editors want real h1 sections, the richTextBlock schema would need updating.
