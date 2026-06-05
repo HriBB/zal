@@ -688,3 +688,49 @@ trailing-slash 301, sitemap 200+XML, robots 200+sitemap ref, rss 200+envelope).
   would return entity-encoded XML; `request.get()` avoids that indirection.
 - The gen:redirects script requires `SANITY_READ_TOKEN`. It's a one-shot CLI; re-run
   whenever new documents are seeded with `_oldPath` fields.
+
+---
+
+## 2026-06-05 — Issue #16: Meta + OG + JSON-LD (meta builder, fallback share card, structured data)
+
+**Built** the complete metadata layer:
+
+- **`app/lib/meta.ts`**: `buildMeta()` — single function used by every route. Produces:
+  `title` (short form + ` — ZAL` suffix, or raw when `noSuffix: true`), `description`,
+  `og:title` (short form), `og:description`, `og:type` (website/article), `og:url`
+  (canonical from `ZAL_ORIGIN + pathname`), `og:image` (page-specific URL or static
+  fallback `/og-default.png`), `og:site_name`, `link[rel=canonical]`.
+  Exports `ZAL_NAME`, `ZAL_ORIGIN`, `ZAL_OG_IMAGE` constants.
+- **`app/lib/jsonld.ts`**: three builders using RR7's `{ 'script:ld+json': ... }` descriptor:
+  - `buildOrganizationJsonLd(units, origin)` — ArchiveOrganization with 5 units as
+    `Place` locations (name, address, url → `/enote/:slug`).
+  - `buildBreadcrumbJsonLd(items)` — BreadcrumbList, 1-indexed `ListItem` array.
+  - `buildNewsArticleJsonLd({title, url, datePublished, imageUrl?})` — NewsArticle
+    with publisher Organization; image field omitted when not provided.
+- **Route updates** (all 10 content routes):
+  - Home: `buildMeta(noSuffix:true)` + ArchiveOrganization JSON-LD using loader units.
+  - `page.tsx`: `buildMeta` + BreadcrumbList JSON-LD when `page.breadcrumbs.length > 0`;
+    builds cumulative ancestor URLs from the breadcrumb slug array.
+  - `novice.$slug.tsx`: `buildMeta(ogType:'article')` + NewsArticle JSON-LD.
+  - `digiteka.$collection.$item.tsx`: `buildMeta` + BreadcrumbList JSON-LD (4-level:
+    Domov → Digiteka → Collection → Item).
+  - Remaining routes (novice, arhivalija-meseca, enote, digiteka, collection, iskanje):
+    `buildMeta` with sensible static Slovenian descriptions.
+- **`e2e/meta.spec.ts`**: 4 spot-check tests — home OG + ArchiveOrganization,
+  nested page OG + BreadcrumbList, post OG + NewsArticle (navigates via listing to
+  avoid hardcoding CMS slugs), home canonical link.
+
+**TDD**: RED→GREEN — `meta.test.ts` (11 tests), `jsonld.test.ts` (14 tests).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (23 files, 231 tests — 25 new),
+`pnpm build` ✓, `pnpm test:e2e` ✓ (50 tests: 46 prior + 4 new).
+
+**Notes for next iteration**:
+- `og-default.png` static fallback URL is referenced but no file exists in the repo.
+  RR7 renders the `og:image` tag; the image 404s until an editor uploads a real share
+  card to `/public/og-default.png`. Routes with a page-specific image (posts with
+  mainImage, units with photo, home hero) bypass the fallback.
+- Route descriptions are static Slovenian strings — no `description` field in CMS.
+  If per-page descriptions are needed, add a `description` field to the `page` schema
+  and update `pageQuery` + `buildMeta` call in `page.tsx`.
+- Issue #17 (Visual Editing) is the only remaining open `ready-for-agent` issue.
