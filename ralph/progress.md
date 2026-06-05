@@ -284,3 +284,59 @@ youtube, prijava-za-seminar forms).
   correctly; scroll will cut off taller forms. Editors can adjust in Studio if needed.
 - The existing 20 image upload failures (certain encoded filenames → Sanity "Bad Request")
   persist — same as issue #5/#6; cosmetic only, figures skipped on those pages.
+
+---
+
+## 2026-06-05 — Issue #8: Gallery block (mapper, schema, grid+lightbox, disk-upload memo, re-seed)
+
+**Built** the complete gallery block slice end-to-end:
+
+- **`app/lib/wp-gallery.ts`**: Two pure extraction functions — `extractInlineGallery`
+  (parses `et_pb_gallery_item` anchor hrefs for full-size URLs, falls back from
+  `img[alt]` to `a[title]`, normalises arnes host) and `nggNth` (extracts index N
+  from `ngg_shortcode_N_placeholder`). 13 unit tests (RED→GREEN).
+- **`app/lib/wp-html.ts`**: Renamed `GalleryImage.src → url` for consistency; extended
+  `HtmlSegment` union with `{ kind: 'gallery'; images }` and `{ kind: 'ngg'; nth }`;
+  extended `splitHtmlSegments` to cluster `et_pb_gallery_item` spans into gallery
+  segments and detect ngg placeholders — all in document order alongside tables/embeds.
+  6 new unit tests.
+- **`app/lib/wp-page.ts`**: `GalleryPageFigure` + `GalleryPageBlock` types; optional
+  fourth param `galleries?: GalleriesData` on `wpPageToPageDoc` for ngg resolution
+  (maps to `galleries[cleanSlug].scans[*].sourceUrl`); handles `gallery` and `ngg`
+  segment kinds in the main block-building loop. 4 new unit tests.
+- **Sanity schema**: `galleryBlockType` (array of figures); `figure.alt` now `required()`
+  in the Studio. Registered in `schemaTypes/index.ts`.
+- **`GalleryBlock.tsx`**: Responsive CSS grid (`grid-cols-2 sm:3 md:4`) + keyboard-
+  accessible lightbox: focus trap (Tab/Shift-Tab cycling), Escape closes, arrow keys
+  navigate, `role="dialog" aria-modal="true"`. LQIP/lazy-load thumbs. Fallback
+  placeholder div for missing assets.
+- **Block registry**: `galleryBlock: GalleryBlock` added; SSOT guard passes.
+- **`pageQuery`**: `galleryBlock` GROQ projection `figures[]{_key, alt, caption, asset->}`.
+- **`seed-pages.ts`**: Loads `download/galleries.json`; disk-based upload from
+  `download/scans/<slug>/<file>` via `uploadFromDisk`; persistent
+  `download/gallery-asset-memo.json` (localPath → assetId — re-run uploads nothing).
+  Passes `galleries` to `wpPageToPageDoc`. Skips gallery blocks whose figures have no
+  disk files (warns per missing figure). Re-seeded: 116 docs written, galerija 12 scans
+  uploaded from disk.
+
+**TDD**: red→green per seam — `wp-gallery.ts` (13 tests), `splitHtmlSegments` gallery/ngg
+(3 tests), `wpPageToPageDoc` gallery blocks (4 tests).
+
+**Results**: `pnpm typecheck ✓`, `pnpm test ✓` (10 files, 115 tests), `pnpm build ✓`,
+`pnpm test:e2e ✓` (11 tests: 9 prior + 2 new — galerija grid renders, lightbox
+opens+closes via keyboard).
+
+**Deferred / notes for next iteration**:
+- 12 other pages have `et_pb_gallery_item` HTML (ljubezen-gre-skozi-zelodec, ucne-ure,
+  znanje-ki-izginja, etc.) but their scans are NOT in `download/galleries.json` (full
+  scrape not yet run). These pages get their galleryBlock skipped; they seed as prose
+  only. Run `pnpm scrape` to completion to fix all at once.
+- `nggNth` resolves ngg placeholders via `galleries[cleanSlug]` — the only ngg pages
+  in the current dump are `privilegijska-knjiga` and `knjigarna` (both not in
+  galleries.json yet); they'll get galleries once the full scrape runs.
+- `[@portabletext/react] Unknown block type "figure"` console warning still appears
+  — figure rendering inside richTextBlock body is cosmetic-only; the figure schema
+  IS registered but PortableText needs a custom components map (future issue or
+  inline fix in RichTextBlock.tsx).
+- `filmoteka-zal` was confirmed to have 0 gallery scans (all YouTube embeds, handled
+  by embedBlock from issue #7) — no gallery block needed or added.
