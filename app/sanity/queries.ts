@@ -89,11 +89,20 @@ export const pageQuery = defineSanityQuery<PageData | null, { slug: string }>(
     blocks[]{
       _type,
       _key,
-      body[]{
-        ...,
-        _type == "figure" => {
+      _type == "richTextBlock" => {
+        body[]{
           ...,
-          asset->{_id, url, metadata{lqip, dimensions}}
+          _type == "figure" => {
+            ...,
+            asset->{_id, url, metadata{lqip, dimensions}}
+          }
+        }
+      },
+      _type == "tableBlock" => {
+        rows[]{
+          _key,
+          isHeader,
+          cells[]{_key, text}
         }
       }
     }

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { cleanSlugForPage, wpPageToPageDoc } from './wp-page'
+import type { RichTextPageBlock, TablePageBlock } from './wp-page'
 
 // ── cleanSlugForPage ───────────────────────────────────────────────────────────
 
@@ -82,12 +83,59 @@ describe('wpPageToPageDoc', () => {
     const doc = wpPageToPageDoc(mockWpPage, 'kontakti', 'page.o-arhivu')
     expect(doc.blocks).toHaveLength(1)
     expect(doc.blocks[0]._type).toBe('richTextBlock')
-    expect(doc.blocks[0].body.length).toBeGreaterThan(0)
+    const block = doc.blocks[0] as RichTextPageBlock
+    expect(block.body.length).toBeGreaterThan(0)
   })
 
   test('empty content produces a richTextBlock with empty body', () => {
     const page = { ...mockWpPage, content: { rendered: '' } }
     const doc = wpPageToPageDoc(page, 'kontakti', null)
-    expect(doc.blocks[0].body).toHaveLength(0)
+    const block = doc.blocks[0] as RichTextPageBlock
+    expect(block.body).toHaveLength(0)
+  })
+})
+
+// ── wpPageToPageDoc – table blocks ─────────────────────────────────────────────
+
+describe('wpPageToPageDoc – table blocks', () => {
+  test('page with single table produces a tableBlock', () => {
+    const page = {
+      ...mockWpPage,
+      content: {
+        rendered:
+          '<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>',
+      },
+    }
+    const doc = wpPageToPageDoc(page, 'kontakti', null)
+    const tableBlocks = doc.blocks.filter((b) => b._type === 'tableBlock')
+    expect(tableBlocks).toHaveLength(1)
+  })
+
+  test('page with prose + table produces richTextBlock then tableBlock in order', () => {
+    const page = {
+      ...mockWpPage,
+      content: {
+        rendered:
+          '<p>Intro</p><table><tbody><tr><td>A</td></tr></tbody></table>',
+      },
+    }
+    const doc = wpPageToPageDoc(page, 'kontakti', null)
+    expect(doc.blocks).toHaveLength(2)
+    expect(doc.blocks[0]._type).toBe('richTextBlock')
+    expect(doc.blocks[1]._type).toBe('tableBlock')
+  })
+
+  test('tableBlock contains correct rows from the HTML table', () => {
+    const page = {
+      ...mockWpPage,
+      content: {
+        rendered:
+          '<table><tbody><tr><td>Naslov</td><td>Vrednost</td></tr></tbody></table>',
+      },
+    }
+    const doc = wpPageToPageDoc(page, 'kontakti', null)
+    const tb = doc.blocks[0] as TablePageBlock
+    expect(tb.rows).toHaveLength(1)
+    expect(tb.rows[0].cells[0].text).toBe('Naslov')
   })
 })

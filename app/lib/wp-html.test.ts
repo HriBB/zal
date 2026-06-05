@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import type { PortableTextBlock } from './wp-html'
 
-import { cleanWpHtml, cutDiviFooter, normalizeHost } from './wp-html'
+import { cleanWpHtml, cutDiviFooter, extractTable, normalizeHost, splitHtmlSegments } from './wp-html'
 
 // ── cutDiviFooter ──────────────────────────────────────────────────────────────
 
@@ -169,5 +169,112 @@ describe('cleanWpHtml', () => {
   test('returns empty portableText for empty or null input', () => {
     expect(cleanWpHtml('').portableText).toHaveLength(0)
     expect(cleanWpHtml(null).portableText).toHaveLength(0)
+  })
+})
+
+// ── extractTable ──────────────────────────────────────────────────────────────
+
+describe('extractTable', () => {
+  test('extracts rows and cells from basic 2×2 table', () => {
+    const html =
+      '<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>'
+    const result = extractTable(html)
+    expect(result.rows).toHaveLength(2)
+    expect(result.rows[0].cells).toHaveLength(2)
+    expect(result.rows[0].cells[0].text).toBe('A')
+    expect(result.rows[0].cells[1].text).toBe('B')
+    expect(result.rows[1].cells[0].text).toBe('C')
+  })
+
+  test('marks row as header when cells use <th>', () => {
+    const html =
+      '<table><tbody><tr><th>Naslov</th><th>Vrednost</th></tr><tr><td>A</td><td>B</td></tr></tbody></table>'
+    const result = extractTable(html)
+    expect(result.rows[0].isHeader).toBe(true)
+    expect(result.rows[1].isHeader).toBe(false)
+  })
+
+  test('marks row as header when row is in <thead>', () => {
+    const html =
+      '<table><thead><tr><td>Header</td></tr></thead><tbody><tr><td>Body</td></tr></tbody></table>'
+    const result = extractTable(html)
+    expect(result.rows[0].isHeader).toBe(true)
+    expect(result.rows[1].isHeader).toBe(false)
+  })
+
+  test('marks first row as header when all cells are all-strong (first-row heuristic)', () => {
+    const html =
+      '<table><tbody><tr><td><strong>Col A</strong></td><td><strong>Col B</strong></td></tr><tr><td>val1</td><td>val2</td></tr></tbody></table>'
+    const result = extractTable(html)
+    expect(result.rows[0].isHeader).toBe(true)
+    expect(result.rows[1].isHeader).toBe(false)
+  })
+
+  test('does NOT mark first row as header when cells have mixed content (ZAL pattern)', () => {
+    const html =
+      '<table><tbody><tr><td><strong>Čitalnica</strong><br/>ponedeljek</td><td>ZAL</td></tr><tr><td>A</td><td>B</td></tr></tbody></table>'
+    const result = extractTable(html)
+    expect(result.rows[0].isHeader).toBe(false)
+  })
+
+  test('flattens nested markup to text: br→space, tags stripped, entities decoded', () => {
+    const html =
+      '<table><tbody><tr><td><strong>Čitalnica</strong><br/>ponedeljek &amp; torek</td></tr></tbody></table>'
+    const result = extractTable(html)
+    expect(result.rows[0].cells[0].text).toBe('Čitalnica ponedeljek & torek')
+  })
+
+  test('tolerates colspan/rowspan attributes without crashing', () => {
+    const html =
+      '<table><tbody><tr><td colspan="2">Wide</td></tr><tr><td>A</td><td>B</td></tr></tbody></table>'
+    const result = extractTable(html)
+    expect(result.rows[0].cells[0].text).toBe('Wide')
+    expect(result.rows).toHaveLength(2)
+  })
+
+  test('returns empty rows array for empty input', () => {
+    expect(extractTable('').rows).toHaveLength(0)
+    expect(extractTable('<table></table>').rows).toHaveLength(0)
+  })
+})
+
+// ── splitHtmlSegments ─────────────────────────────────────────────────────────
+
+describe('splitHtmlSegments', () => {
+  test('returns single prose segment when no tables present', () => {
+    const segments = splitHtmlSegments('<p>Hello</p><p>World</p>')
+    expect(segments).toHaveLength(1)
+    expect(segments[0].kind).toBe('prose')
+    expect(segments[0].html).toContain('Hello')
+  })
+
+  test('returns single table segment for table-only HTML', () => {
+    const segments = splitHtmlSegments(
+      '<table><tbody><tr><td>A</td></tr></tbody></table>',
+    )
+    expect(segments).toHaveLength(1)
+    expect(segments[0].kind).toBe('table')
+  })
+
+  test('splits HTML into prose then table then prose in document order', () => {
+    const segments = splitHtmlSegments(
+      '<p>Before</p><table><tbody><tr><td>X</td></tr></tbody></table><p>After</p>',
+    )
+    expect(segments).toHaveLength(3)
+    expect(segments[0].kind).toBe('prose')
+    expect(segments[1].kind).toBe('table')
+    expect(segments[2].kind).toBe('prose')
+    expect(segments[0].html).toContain('Before')
+    expect(segments[2].html).toContain('After')
+  })
+
+  test('handles multiple consecutive tables', () => {
+    const segments = splitHtmlSegments(
+      '<p>Intro</p><table><tbody><tr><td>T1</td></tr></tbody></table><table><tbody><tr><td>T2</td></tr></tbody></table>',
+    )
+    expect(segments).toHaveLength(3)
+    expect(segments[0].kind).toBe('prose')
+    expect(segments[1].kind).toBe('table')
+    expect(segments[2].kind).toBe('table')
   })
 })

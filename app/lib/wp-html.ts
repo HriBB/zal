@@ -314,3 +314,110 @@ export function cleanWpHtml(html: string | null | undefined): CleanedWpHtml {
 
   return { portableText: blocks, gallery }
 }
+
+// ── Table extraction ──────────────────────────────────────────────────────────
+
+export type WpTableCell = {
+  text: string
+}
+
+export type WpTableRow = {
+  isHeader: boolean
+  cells: WpTableCell[]
+}
+
+export type WpTableData = {
+  rows: WpTableRow[]
+}
+
+export type HtmlSegment =
+  | { kind: 'prose'; html: string }
+  | { kind: 'table'; html: string }
+
+function flattenCellHtml(html: string): string {
+  return decodeEntities(html.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isAllStrongCell(cellHtml: string): boolean {
+  return /^\s*<strong\b[^>]*>[^<]*<\/strong>\s*$/i.test(cellHtml.trim())
+}
+
+function extractRowsFromHtml(html: string, forceHeader: boolean): WpTableRow[] {
+  const rows: WpTableRow[] = []
+  const trRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi
+  let trMatch: RegExpExecArray | null
+  let rowIndex = 0
+
+  while ((trMatch = trRe.exec(html)) !== null) {
+    const rowHtml = trMatch[1]
+    const cells: WpTableCell[] = []
+    const rawCellHtmls: string[] = []
+    const cellRe = /<(td|th)\b[^>]*>([\s\S]*?)<\/\1>/gi
+    let cellMatch: RegExpExecArray | null
+
+    const hasThCell = /<th\b/i.test(rowHtml)
+
+    while ((cellMatch = cellRe.exec(rowHtml)) !== null) {
+      rawCellHtmls.push(cellMatch[2])
+      cells.push({ text: flattenCellHtml(cellMatch[2]) })
+    }
+
+    const isFirstRowAllStrong =
+      rowIndex === 0 &&
+      rawCellHtmls.length > 0 &&
+      rawCellHtmls.every(isAllStrongCell)
+
+    const isHeader = forceHeader || hasThCell || isFirstRowAllStrong
+
+    if (cells.length > 0) {
+      rows.push({ isHeader, cells })
+    }
+    rowIndex++
+  }
+
+  return rows
+}
+
+const THEAD_RE = /<thead\b[^>]*>([\s\S]*?)<\/thead>/i
+
+/** Parse a `<table>` HTML string into rows of cells with header detection. */
+export function extractTable(tableHtml: string): WpTableData {
+  if (!tableHtml) return { rows: [] }
+
+  const rows: WpTableRow[] = []
+  const theadMatch = tableHtml.match(THEAD_RE)
+
+  if (theadMatch) {
+    rows.push(...extractRowsFromHtml(theadMatch[1], true))
+    const withoutThead = tableHtml.replace(THEAD_RE, '')
+    rows.push(...extractRowsFromHtml(withoutThead, false))
+  } else {
+    rows.push(...extractRowsFromHtml(tableHtml, false))
+  }
+
+  return { rows }
+}
+
+/** Split HTML into interleaved prose and table segments (document order). */
+export function splitHtmlSegments(html: string): HtmlSegment[] {
+  const segments: HtmlSegment[] = []
+  const re = /<table\b[^>]*>[\s\S]*?<\/table>/gi
+  let last = 0
+  let m: RegExpExecArray | null
+
+  while ((m = re.exec(html)) !== null) {
+    if (m.index > last) {
+      segments.push({ kind: 'prose', html: html.slice(last, m.index) })
+    }
+    segments.push({ kind: 'table', html: m[0] })
+    last = re.lastIndex
+  }
+
+  if (last < html.length) {
+    segments.push({ kind: 'prose', html: html.slice(last) })
+  }
+
+  return segments
+}

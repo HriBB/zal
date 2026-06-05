@@ -43,3 +43,10 @@ test('wrong-chain URL returns 404 (ADR-0004)', async ({ page }) => {
   const res = await page.goto('/za-uporabnike/kontakti')
   expect(res?.status()).toBe(404)
 })
+
+test('katalog page renders at least one table element', async ({ page }) => {
+  // katalog-informacij-javnega-znacaja has 4 real tables after Divi footer cut
+  const res = await page.goto('/o-arhivu/katalog-informacij-javnega-znacaja')
+  expect(res?.status()).toBe(200)
+  await expect(page.locator('table').first()).toBeVisible()
+})

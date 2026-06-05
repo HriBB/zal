@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 
 import { RichTextBlock } from './RichTextBlock'
+import { TableBlock } from './TableBlock'
 
 export type BlockComponentProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,4 +16,5 @@ export type BlockComponentProps = {
  */
 export const blockRegistry: Record<string, ComponentType<BlockComponentProps>> = {
   richTextBlock: RichTextBlock,
+  tableBlock: TableBlock,
 }

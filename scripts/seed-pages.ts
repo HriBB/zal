@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url'
 import { createClient } from '@sanity/client'
 
 import { cleanSlugForPage, WP_SKIP_IDS, wpPageToPageDoc } from '../app/lib/wp-page.ts'
+import type { RichTextPageBlock } from '../app/lib/wp-page.ts'
 import { cutDiviFooter } from '../app/lib/wp-html.ts'
 import type { PortableTextNode } from '../app/lib/wp-html.ts'
 
@@ -196,14 +197,21 @@ async function buildSeedDoc(
   parentRef: string | null,
 ) {
   const mapped = wpPageToPageDoc(wpPage, cleanSlug, parentRef)
-  const block = mapped.blocks[0]
-  const resolvedBody = block?.body.length
-    ? await resolveBodyFigures(block.body as PortableTextNode[])
-    : (block?.body ?? [])
-  return {
-    ...mapped,
-    blocks: block ? [{ ...block, body: resolvedBody }] : [],
+
+  const blocks = []
+  for (const block of mapped.blocks) {
+    if (block._type === 'richTextBlock') {
+      const rtb = block as RichTextPageBlock
+      const body = rtb.body as PortableTextNode[]
+      const resolvedBody = body.length ? await resolveBodyFigures(body) : body
+      blocks.push({ ...rtb, body: resolvedBody })
+    } else {
+      // tableBlock and future block types pass through unchanged
+      blocks.push(block)
+    }
   }
+
+  return { ...mapped, blocks }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────

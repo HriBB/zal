@@ -1,6 +1,6 @@
-import { cleanWpHtml } from './wp-html.ts'
+import { cleanWpHtml, extractTable, splitHtmlSegments } from './wp-html.ts'
 
-import type { PortableTextNode } from './wp-html.ts'
+import type { PortableTextNode, WpTableRow } from './wp-html.ts'
 
 export type WpPage = {
   id: number
@@ -11,11 +11,19 @@ export type WpPage = {
   link: string
 }
 
-export type PageBlock = {
-  _type: string
+export type RichTextPageBlock = {
+  _type: 'richTextBlock'
   _key: string
   body: PortableTextNode[]
 }
+
+export type TablePageBlock = {
+  _type: 'tableBlock'
+  _key: string
+  rows: WpTableRow[]
+}
+
+export type PageBlock = RichTextPageBlock | TablePageBlock
 
 export type PageSeedDoc = {
   _id: string
@@ -90,7 +98,35 @@ export function wpPageToPageDoc(
   cleanSlug: string,
   parentRef: string | null,
 ): PageSeedDoc {
-  const { portableText } = cleanWpHtml(page.content.rendered)
+  const segments = splitHtmlSegments(page.content.rendered ?? '')
+  const blocks: PageBlock[] = []
+
+  for (const segment of segments) {
+    if (segment.kind === 'table') {
+      const tableData = extractTable(segment.html)
+      if (tableData.rows.length > 0) {
+        blocks.push({
+          _type: 'tableBlock',
+          _key: `tb-${blocks.length}`,
+          rows: tableData.rows,
+        })
+      }
+    } else {
+      const { portableText } = cleanWpHtml(segment.html)
+      if (portableText.length > 0) {
+        blocks.push({
+          _type: 'richTextBlock',
+          _key: `rtb-${blocks.length}`,
+          body: portableText,
+        })
+      }
+    }
+  }
+
+  // Ensure at least one block (empty richTextBlock for pages with no content)
+  if (blocks.length === 0) {
+    blocks.push({ _type: 'richTextBlock', _key: 'rtb-0', body: [] })
+  }
 
   const doc: PageSeedDoc = {
     _id: `page.${cleanSlug}`,
@@ -98,13 +134,7 @@ export function wpPageToPageDoc(
     title: decodeTitle(page.title.rendered),
     slug: { _type: 'slug', current: cleanSlug },
     _oldPath: oldPathFromLink(page.link),
-    blocks: [
-      {
-        _type: 'richTextBlock',
-        _key: 'rtb-0',
-        body: portableText,
-      },
-    ],
+    blocks,
   }
 
   if (parentRef) {
