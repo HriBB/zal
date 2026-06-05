@@ -1,4 +1,4 @@
-import { CogIcon, DocumentIcon, ImageIcon, PinIcon, TagIcon } from '@sanity/icons'
+import { CogIcon, DocumentIcon, HomeIcon, ImageIcon, PinIcon, TagIcon } from '@sanity/icons'
 
 import type {
   DefaultDocumentNodeResolver,
@@ -24,6 +24,7 @@ export const structure: StructureResolver = (S) =>
     .id('root')
     .title('Vsebina')
     .items([
+      singleton(S, 'homePage', 'Domača stran', HomeIcon),
       singleton(S, 'siteSettings', 'Nastavitve strani', CogIcon),
       S.divider(),
       S.listItem()

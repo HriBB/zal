@@ -306,6 +306,67 @@ export const archiveItemQuery = defineSanityQuery<ArchiveItemData | null, { slug
   }`,
 )
 
+// ── Home page singleton ───────────────────────────────────────────────────────
+
+export type ServiceCard = {
+  _key: string
+  title: string
+  description: string | null
+  href: string
+  image: MainImageData | null
+}
+
+export type HomeHero = {
+  heading: string
+  lead: string | null
+  image: MainImageData | null
+}
+
+export type HomePageData = {
+  hero: HomeHero | null
+  serviceCards: ServiceCard[]
+}
+
+export const homePageQuery = defineSanityQuery<HomePageData | null>(
+  `*[_type == "homePage"][0]{
+    hero{
+      heading,
+      lead,
+      image{alt, asset->{_id, url, metadata{lqip, dimensions}}}
+    },
+    serviceCards[]{
+      _key,
+      title,
+      description,
+      href,
+      image{alt, asset->{_id, url, metadata{lqip, dimensions}}}
+    }
+  }`,
+)
+
+export const homeLatestPostsQuery = defineSanityQuery<PostSummary[]>(
+  `*[_type == "post"] | order(date desc)[0..5]{
+    _id,
+    title,
+    "slug": slug.current,
+    date,
+    "categories": categories[]->{_id, title, "slug": slug.current},
+    ${MAIN_IMAGE_PROJECTION}
+  }`,
+)
+
+export const homeArhavalijaQuery = defineSanityQuery<PostSummary | null>(
+  `*[_type == "post" && "arhivalija-meseca" in categories[]->slug.current]
+    | order(date desc)[0]{
+    _id,
+    title,
+    "slug": slug.current,
+    date,
+    "categories": categories[]->{_id, title, "slug": slug.current},
+    ${MAIN_IMAGE_PROJECTION}
+  }`,
+)
+
 // ── Archive unit ──────────────────────────────────────────────────────────────
 
 export type HourSlot = {
@@ -329,6 +390,7 @@ export type ArchiveUnitSummary = {
   emails: string[]
   officeHours: HourSlot[]
   readingRoomHours: HourSlot[]
+  photo: MainImageData | null
 }
 
 export type ArchiveUnitData = ArchiveUnitSummary & {
@@ -357,7 +419,11 @@ export const archiveUnitsQuery = defineSanityQuery<ArchiveUnitSummary[]>(
     address,
     phones[]{_key, label, number},
     emails,
-    ${UNIT_HOURS_PROJECTION}
+    ${UNIT_HOURS_PROJECTION},
+    photo{
+      "alt": asset->altText,
+      asset->{_id, url, metadata{lqip, dimensions}}
+    }
   }`,
 )
 

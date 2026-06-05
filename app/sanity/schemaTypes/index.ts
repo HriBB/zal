@@ -12,6 +12,7 @@ import { categoryType } from './documents/category'
 import { collectionType } from './documents/collection'
 import { pageType } from './documents/page'
 import { postType } from './documents/post'
+import { homePageType } from './singletons/homePage'
 import { siteSettingsType } from './singletons/siteSettings'
 
 export const schemaTypes: SchemaTypeDefinition[] = [
@@ -32,7 +33,8 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   collectionType,
   pageType,
   postType,
+  homePageType,
   siteSettingsType,
 ]
 
-export const SINGLETONS = ['siteSettings'] as const
+export const SINGLETONS = ['siteSettings', 'homePage'] as const
