@@ -1,23 +1,29 @@
 import { Outlet } from 'react-router'
+import { VisualEditing } from '@sanity/visual-editing/react-router'
 
 import type { Route } from './+types/layout'
 
+import { ExitPreview } from '~/components/ExitPreview'
+import { SanityLiveMode } from '~/components/SanityLiveMode'
 import { Footer } from '~/components/layout/Footer'
 import { Header } from '~/components/layout/Header'
+import { useSanity } from '~/sanity/data'
 import { loadSanity } from '~/sanity/data.server'
 import { archiveUnitsQuery, siteSettingsQuery } from '~/sanity/queries'
 
 export async function loader({ request }: Route.LoaderArgs) {
   const [siteSettings, archiveUnits] = await Promise.all([
-    loadSanity(request, siteSettingsQuery),
+    loadSanity(request, siteSettingsQuery, { withPreview: true }),
     loadSanity(request, archiveUnitsQuery),
   ])
   return { siteSettings, archiveUnits }
 }
 
 export default function WebsiteLayout({ loaderData }: Route.ComponentProps) {
-  const settings = loaderData.siteSettings.initial.data
-  const units = loaderData.archiveUnits.initial.data ?? []
+  const settings = useSanity(siteSettingsQuery, loaderData.siteSettings)
+  const units = useSanity(archiveUnitsQuery, loaderData.archiveUnits) ?? []
+  const { preview } = loaderData.siteSettings
+
   return (
     <div className="flex min-h-dvh flex-col">
       <Header nav={settings?.nav ?? []} />
@@ -30,6 +36,13 @@ export default function WebsiteLayout({ loaderData }: Route.ComponentProps) {
         externalArchiveLinks={settings?.externalArchiveLinks ?? []}
         archiveUnits={units}
       />
+      {preview ? (
+        <>
+          <SanityLiveMode />
+          <ExitPreview />
+          <VisualEditing />
+        </>
+      ) : null}
     </div>
   )
 }
