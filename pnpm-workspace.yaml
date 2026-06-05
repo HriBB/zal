@@ -3,3 +3,11 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - '@tailwindcss/oxide'
+# Host (macOS) and the ralph sbx sandbox (linux) share node_modules via bind
+# mount — install native binaries for both so installs don't ping-pong.
+supportedArchitectures:
+  os:
+    - darwin
+    - linux
+  cpu:
+    - arm64
