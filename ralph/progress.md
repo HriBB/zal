@@ -399,3 +399,54 @@ opens+closes via keyboard).
   derives its projection from it too (refactor done in this iteration).
 - Category filter `?kat=` uses `""` (empty string) as the "all" sentinel, matching
   Sanity's GROQ `$cat == ""` comparison (null/undefined params caused GROQ errors).
+
+---
+
+## 2026-06-05 — Issue #10: Archive units (schema, seed 5 units, /enote pages, footer hours accordion)
+
+**Built** the complete archive unit vertical slice:
+
+- **`app/sanity/schemaTypes/objects/hourSlot.ts`**: `hourSlotType` object — `{days, hours}`
+  strings. Reusable for both officeHours and readingRoomHours arrays.
+- **`app/sanity/schemaTypes/documents/archiveUnit.ts`**: `archiveUnitType` document —
+  name, slug, address (text), phones (array of `{label, number}`), emails (array of
+  string), officeHours, readingRoomHours (both arrays of hourSlot), photo (image),
+  description, mapUrl (url), `_oldPath`.
+- Both types registered in `schemaTypes/index.ts`. Studio desk updated with Enote list item.
+- **`app/sanity/queries.ts`**: `archiveUnitsQuery` (all units ordered by name, for footer)
+  + `archiveUnitQuery` (single unit, for `/enote/:slug`). `ArchiveUnitSummary` +
+  `ArchiveUnitData` + `HourSlot` + `PhoneEntry` types exported.
+- **`app/routes/website/layout.tsx`**: layout loader now fetches both siteSettings AND
+  archiveUnits in parallel (`Promise.all`). Units passed to Footer.
+- **`app/components/layout/Footer.tsx`**: added `UnitAccordionItem` component —
+  keyboard-accessible collapsible panel per unit (`aria-expanded`, `aria-controls`,
+  `focus-visible` ring, `hidden` panel toggle). Shows address, phones, emails, hours.
+  Unit name is a `<Link>` to `/enote/:slug`.
+- **`app/routes/website/enote.$slug.tsx`**: unit detail route — address, contacts,
+  office + reading-room hours sections, responsive Google Maps iframe (16:9 ratio),
+  breadcrumb back to `/enote`, 404 ErrorBoundary.
+- **`scripts/seed-archive-units.ts`**: seeds 5 units with real data extracted from WP
+  REST dump (addresses from unit page content; contacts + hours from Divi footer text;
+  map URLs from `/kako-do-nas` page iframes in document order). `createIfNotExists`
+  default; `SEED_FORCE=1` to overwrite. `pnpm seed:units` added to `package.json`.
+- **`_oldPath`** stored on every unit doc — covers the WP canonical paths under
+  `/domaca-stran-1/o-arhivu-2/predstavitev/` for the issue #15 redirect map.
+
+**TDD**: red→green — `archiveUnit.test.ts` written first (module-not-found RED), then
+schema implemented (GREEN). 6 schema shape tests: type name, identity fields, contact
+fields, hours fields, mapUrl, _oldPath.
+
+**Results**: `pnpm typecheck ✓`, `pnpm test ✓` (12 files, 139 tests), `pnpm build ✓`,
+`pnpm seed:units ✓` (5 archiveUnit docs written), `pnpm test:e2e ✓` (22 tests: 17
+prior + 5 new — unit page renders, breadcrumb, 404, footer accordion present + expands).
+
+**Notes for next iteration**:
+- Škofja Loka and Idrija have combined reading room + office (same hours in both arrays).
+  This is accurate to the source data; the renderer shows both sections with identical
+  hours, which is a minor duplication. Editors can clean up in Studio if desired.
+- No `/enote` listing route (all units) — the issue only required `/enote/:slug` detail
+  pages. A listing page was not in the acceptance criteria; add if needed later.
+- Unit photos not seeded (no WP media files for units identified in REST dump). Photo
+  field exists in the schema; editors can upload via Studio.
+- Footer accordion uses plain `hidden` boolean (not CSS transition) for simplicity.
+  A CSS transition can be added later without any schema or route changes.
