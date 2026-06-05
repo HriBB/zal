@@ -193,3 +193,49 @@ scans (its films are video embeds — slice #7's embed block, not scans).
   environment variables should be injected by the platform (not .env file).
 - h1 blocks from WP content are demoted to h2 in the renderer — this is intentional.
   If editors want real h1 sections, the richTextBlock schema would need updating.
+
+---
+
+## 2026-06-05 — Issue #6: Table block (mapper split, schema, accessible renderer, re-seed)
+
+**Built** the complete table block slice end-to-end:
+
+- **`app/lib/wp-html.ts`**: `extractTable` — parses a `<table>` HTML string into
+  `WpTableData { rows: WpTableRow[] }`. Header detection: `<th>` cells, `<thead>`
+  wrapper, or first-row-all-strong heuristic (all cells entirely wrapped in `<strong>`).
+  Cell text = nested markup flattened (`<br>`→space, all tags stripped, entities decoded).
+  Tolerates colspan/rowspan. `splitHtmlSegments` — splits raw HTML at `<table>` boundaries
+  into interleaved `{kind:'prose'|'table', html}` segments for document-order multi-block
+  output. 12 new unit tests (RED→GREEN).
+- **`app/lib/wp-page.ts`**: `wpPageToPageDoc` rewritten to call `splitHtmlSegments` first,
+  then produce `richTextBlock` for prose segments and `tableBlock` for table segments, in
+  document order. Exported `RichTextPageBlock` and `TablePageBlock` union types. 3 new
+  unit tests; all 17 existing tests still pass.
+- **Sanity schema**: `tableCellType` / `tableRowType` / `tableBlockType` — rows with
+  `isHeader` boolean + `cells[]` string fields. Registered in `schemaTypes/index.ts`;
+  Studio editing works (rows/cells/isHeader toggle).
+- **`app/components/blocks/TableBlock.tsx`**: header rows → `<thead>/<th scope="col">`;
+  body rows → `<tbody>/<td>`; `overflow-x-auto` wrapper for responsive overflow.
+- **Block registry**: `tableBlock: TableBlock` added; existing SSOT guard confirms
+  schema + renderer cannot drift.
+- **`app/sanity/queries.ts`**: `pageQuery` updated with conditional GROQ projection —
+  `_type == "richTextBlock" => { body[]{...} }` and
+  `_type == "tableBlock" => { rows[]{_key,isHeader,cells[]} }`.
+- **`scripts/seed-pages.ts`**: `buildSeedDoc` now iterates all blocks, resolves figures
+  only in richTextBlocks, passes tableBlocks through unchanged. Re-seed: 116 docs written.
+
+**TDD**: RED→GREEN per seam — `extractTable` (8 tests), `splitHtmlSegments` (4 tests),
+`wpPageToPageDoc` table blocks (3 tests).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (8 files, 82 tests), `pnpm build` ✓,
+`pnpm test:e2e` ✓ (6 tests: prior 5 + new katalog table E2E).
+
+**Notes for next iteration**:
+- 222 tables in raw WP dump are almost all in Divi footer sections (`id="kontakt"`)
+  and are cut by `cutDiviFooter`. Only 12 real content tables survive across 4 pages:
+  `zala-v-ljubljani`, `zala-v-idirji`, `katalog-informacij-javnega-znacaja`,
+  `zgodovina-arhiva`. None have `<th>` elements — all render as body-only tables.
+- The first-row-all-strong heuristic does NOT fire on any ZAL data (ZAL tables have
+  mixed cell content). The heuristic is correct and tested for future data.
+- `pageQuery` conditional projection pattern is now the model for future blocks
+  (embed, gallery) that also have non-`body` fields.
