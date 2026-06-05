@@ -638,3 +638,53 @@ home — hero+search, service cards, news grid, unit strip ×5, arhivalija band)
   current route data only includes `parentSlug`, not the full path. Deep-page search
   results link to the top-level slug — fine for the current site structure (most pages
   are 1-2 levels deep and their slugs are unique).
+
+---
+
+## 2026-06-05 — Issue #15: Redirects + sitemap + robots + RSS
+
+**Built** the link-equity and syndication infrastructure (ADR-0003):
+
+- **`app/lib/redirects.ts`**: `normalizeOldPath` (strips trailing slash, strips host)
+  and `buildPagePath` (joins slug chain → `/a/b/c`). Pure seam, 10 unit tests.
+- **`app/lib/sitemap.ts`**: `buildSitemapXml` — formats `SitemapEntry[]` into valid
+  sitemap XML with `<lastmod>` truncated to date. XML-escapes `&` in locs. 5 unit tests.
+- **`app/lib/rss.ts`**: `buildRssFeed` — RSS 2.0 envelope with channel metadata and
+  item elements; `pubDate` formatted via `toUTCString()`; XML-escapes title/link.
+  5 unit tests.
+- **`scripts/gen-redirects.ts`**: queries Sanity `_oldPath` on pages, posts, archiveItems,
+  and collections; normalises each old path; computes new path (pages via `buildPagePath`,
+  posts → `/novice/{slug}`, items → `/digiteka/{collection}/{slug}`, collections →
+  `/digiteka/{slug}`); writes `app/data/redirects.json`. Idempotent re-run safe.
+- **`app/data/redirects.json`**: committed artifact — 871 redirects (53 pages, 311 posts,
+  503 archive items, 4 collections). `pnpm gen:redirects` regenerates.
+- **`app/routes/website/page.tsx`**: imports redirect map as JSON; normalises the
+  incoming URL path; if a redirect entry exists, returns `redirect(newPath, 301)` before
+  any Sanity query or 404 (ADR-0003).
+- **`app/routes/sitemap[.]xml.tsx`**: queries Sanity for all pages (with 3-level parent
+  chain for nested paths), posts, collections, and archive items; builds full canonical
+  URLs; returns `buildSitemapXml` output with `Content-Type: application/xml`.
+- **`app/routes/robots[.]txt.tsx`**: allows `/`, disallows `/studio` and `/resource`,
+  references `${origin}/sitemap.xml`. `Cache-Control: public, max-age=3600`.
+- **`app/routes/rss[.]xml.tsx`**: fetches latest 50 posts; returns `buildRssFeed` output
+  with `Content-Type: application/rss+xml`.
+- **`app/routes.ts`**: three new top-level routes: `sitemap.xml`, `robots.txt`, `rss.xml`.
+- **`app/sanity/queries.ts`**: `sitemapPagesQuery`, `sitemapPostsQuery`,
+  `sitemapCollectionsQuery`, `sitemapArchiveItemsQuery`, `rssFeedQuery` + typed exports.
+
+**TDD**: RED→GREEN per seam — `normalizeOldPath`/`buildPagePath` (10), `buildSitemapXml`
+(5), `buildRssFeed` (5). Total 15 new unit tests.
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (21 files, 206 tests), `pnpm build` ✓,
+`pnpm test:e2e` ✓ (46 tests: 40 prior + 6 new — archive-item 301, page-tree 301,
+trailing-slash 301, sitemap 200+XML, robots 200+sitemap ref, rss 200+envelope).
+
+**Notes for next iteration**:
+- 62 pages had `_oldPath == null` (top-level containers skipped by `WP_SKIP_IDS` in the
+  seed, or pages seeded without a WP link). These don't need redirects (they either had no
+  old URL or already use the same slug).
+- RSS E2E test uses Playwright `request` fixture (not `page`) to get the raw HTTP response
+  body. Chrome treats `application/rss+xml` as text and wraps it in HTML, so `page.content()`
+  would return entity-encoded XML; `request.get()` avoids that indirection.
+- The gen:redirects script requires `SANITY_READ_TOKEN`. It's a one-shot CLI; re-run
+  whenever new documents are seeded with `_oldPath` fields.
