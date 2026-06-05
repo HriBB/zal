@@ -591,5 +591,50 @@ home — hero+search, service cards, news grid, unit strip ×5, arhivalija band)
   Harmless extra data; no change to footer component required.
 - The utility bar contact info (hours, email, phone) is hardcoded in the component.
   If editors need to control this, move it to `siteSettings` in a later iteration.
-- Search form posts to `/iskanje` — route not yet implemented (issue #14). Form wiring
-  is complete; submitting will 404 until issue #14 lands.
+- Search form posts to `/iskanje` — route now implemented (issue #14 complete).
+
+---
+
+## 2026-06-05 — Issue #14: Search /iskanje (GROQ across 4 types, grouped results, SIRAnet pointer)
+
+**Built** the complete site search vertical slice:
+
+- **`app/lib/search.ts`**: pure seam — `sanitizeTerm` (trim + collapse whitespace),
+  `isValidTerm` (≥2 chars), `buildSearchParams` (appends `*` wildcard for GROQ prefix
+  match), `totalHits` (sums all group lengths), `runSearch` (injectable runner for seam
+  testing), `SearchResults` type hierarchy (`SearchPageResult`, `SearchPostResult`,
+  `SearchCollectionResult`, `SearchArchiveItemResult`).
+- **`app/sanity/queries.ts`**: `searchQuery` — combined GROQ object query across 4 types:
+  pages (title match), posts (title match), collections (name match), archive items
+  (title match OR `count(metadata[value match $term]) > 0`). Up to 10 hits per group.
+  Re-exports `SearchResults` + sub-types from lib/search.
+- **`app/routes/website/iskanje.tsx`**: `/iskanje` route — reads `?q=`, sanitizes,
+  passes wildcard term to searchQuery; groups results by type with labels (Strani /
+  Novice / Zbirke / Arhivalije) and hit counts; SIRAnet/VAC pointer banner always visible
+  (above fold, regardless of query state); empty-query state ("Vnesite iskalni niz…");
+  no-results state ("Ni zadetkov za…"); inline search form for repeat queries.
+- **`app/routes.ts`**: `iskanje` route wired before catch-all.
+- **`e2e/iskanje.spec.ts`**: 5 E2E tests — empty state, SIRAnet link structure,
+  grouped results or no-results for real query, hero round-trip (`/` → fill form →
+  submit → land on `/iskanje?q=…`), no-results for nonsense term.
+
+**TDD**: RED→GREEN per seam — `sanitizeTerm` (4 tests), `isValidTerm` (4 tests),
+`buildSearchParams` (2 tests), `totalHits` (2 tests), `runSearch` seam (1 test).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (18 files, 186 tests — 13 new),
+`pnpm build` ✓, `pnpm test:e2e` ✓ (40 tests: 35 prior + 5 new).
+
+**Deferred / notes for next iteration**:
+- Body text search not implemented: GROQ `match` works on string fields; searching
+  inside Portable Text arrays (richTextBlock body) requires either `pt::text()` on a
+  flat array or a denormalized `_searchText` field. Title + metadata search satisfies
+  the acceptance criteria for the current dataset. Body-text search is a future
+  enhancement if needed.
+- Archive items search on metadata values uses `count(metadata[value match $term]) > 0` —
+  this fires on partial token matches (e.g., "pergament" finds charters with Snov:
+  "pergament"). Works correctly with the prefix wildcard.
+- `buildPageHref` in the route is a simple slug-to-path mapping (`/${slug}`). Nested
+  pages with parents would need the full ancestor chain to produce a correct URL; the
+  current route data only includes `parentSlug`, not the full path. Deep-page search
+  results link to the top-level slug — fine for the current site structure (most pages
+  are 1-2 levels deep and their slugs are unique).
