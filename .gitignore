@@ -18,3 +18,4 @@ ralph/seed-asset-memo.json
 
 .DS_Store
 *.log
+.pnpm-store/
