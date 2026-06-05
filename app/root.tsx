@@ -11,6 +11,16 @@ import type { Route } from './+types/root'
 
 import './styles/app.css'
 
+export function loader() {
+  return {
+    ENV: {
+      VITE_SANITY_PROJECT_ID: process.env.VITE_SANITY_PROJECT_ID ?? '',
+      VITE_SANITY_DATASET: process.env.VITE_SANITY_DATASET ?? '',
+      VITE_SANITY_API_VERSION: process.env.VITE_SANITY_API_VERSION ?? '2024-10-01',
+    },
+  }
+}
+
 export const meta: Route.MetaFunction = () => [
   { title: 'Zgodovinski arhiv Ljubljana' },
   {
