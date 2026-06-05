@@ -201,3 +201,76 @@ export const arhivaListQuery = defineSanityQuery<PostSummary[]>(
       ${MAIN_IMAGE_PROJECTION}
     }`,
 )
+
+// ── Archive unit ──────────────────────────────────────────────────────────────
+
+export type HourSlot = {
+  _key: string
+  days: string
+  hours: string
+}
+
+export type PhoneEntry = {
+  _key: string
+  label: string | null
+  number: string
+}
+
+export type ArchiveUnitSummary = {
+  _id: string
+  name: string
+  slug: string
+  address: string
+  phones: PhoneEntry[]
+  emails: string[]
+  officeHours: HourSlot[]
+  readingRoomHours: HourSlot[]
+}
+
+export type ArchiveUnitData = ArchiveUnitSummary & {
+  mapUrl: string | null
+  photo: {
+    alt: string | null
+    asset: {
+      _id: string
+      url: string
+      metadata: { lqip: string | null; dimensions: { width: number; height: number } | null }
+    } | null
+  } | null
+  description: string | null
+}
+
+const UNIT_HOURS_PROJECTION = `
+  officeHours[]{_key, days, hours},
+  readingRoomHours[]{_key, days, hours}
+`
+
+export const archiveUnitsQuery = defineSanityQuery<ArchiveUnitSummary[]>(
+  `*[_type == "archiveUnit"] | order(name asc){
+    _id,
+    name,
+    "slug": slug.current,
+    address,
+    phones[]{_key, label, number},
+    emails,
+    ${UNIT_HOURS_PROJECTION}
+  }`,
+)
+
+export const archiveUnitQuery = defineSanityQuery<ArchiveUnitData | null, { slug: string }>(
+  `*[_type == "archiveUnit" && slug.current == $slug][0]{
+    _id,
+    name,
+    "slug": slug.current,
+    address,
+    phones[]{_key, label, number},
+    emails,
+    ${UNIT_HOURS_PROJECTION},
+    mapUrl,
+    photo{
+      "alt": asset->altText,
+      asset->{_id, url, metadata{lqip, dimensions}}
+    },
+    description
+  }`,
+)

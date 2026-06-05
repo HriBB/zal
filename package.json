@@ -16,7 +16,8 @@
     "seed:pages": "node --experimental-strip-types scripts/seed-pages.ts",
     "seed:posts": "node --experimental-strip-types scripts/seed-posts.ts",
     "lint": "eslint .",
-    "format": "prettier --write \"app/**/*.{ts,tsx}\""
+    "format": "prettier --write \"app/**/*.{ts,tsx}\"",
+    "seed:units": "node --experimental-strip-types scripts/seed-archive-units.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",
