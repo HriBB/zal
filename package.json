@@ -18,7 +18,8 @@
     "lint": "eslint .",
     "format": "prettier --write \"app/**/*.{ts,tsx}\"",
     "seed:units": "node --experimental-strip-types scripts/seed-archive-units.ts",
-    "seed:digiteka": "node --experimental-strip-types scripts/seed-digiteka.ts"
+    "seed:digiteka": "node --experimental-strip-types scripts/seed-digiteka.ts",
+    "seed:scans": "node --experimental-strip-types scripts/seed-scans.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",

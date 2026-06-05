@@ -1,5 +1,7 @@
 import { Link, useLoaderData } from 'react-router'
 
+import { ImageGallery } from '~/components/ImageGallery'
+import type { FigureData } from '~/components/ImageGallery'
 import { loadSanity } from '~/sanity/data.server'
 import { archiveItemQuery } from '~/sanity/queries'
 
@@ -36,6 +38,13 @@ export function ErrorBoundary() {
 export default function ArchiveItemPage() {
   const data = useLoaderData<typeof loader>()
   const item = data.initial.data!
+
+  const figures: FigureData[] = item.gallery.map((fig) => ({
+    _key: fig._key,
+    alt: fig.alt,
+    caption: fig.caption,
+    asset: fig.asset ?? undefined,
+  }))
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
@@ -89,23 +98,10 @@ export default function ArchiveItemPage() {
         </section>
       )}
 
-      {item.gallery.length > 0 && (
+      {figures.length > 0 && (
         <section aria-label="Posnetki" className="mt-8">
           <h2 className="mb-4 text-xl font-semibold">Posnetki</h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {item.gallery.map((fig) =>
-              fig.asset ? (
-                <li key={fig._key}>
-                  <img
-                    src={fig.asset.url}
-                    alt={fig.alt ?? item.title}
-                    className="w-full rounded object-cover"
-                    loading="lazy"
-                  />
-                </li>
-              ) : null,
-            )}
-          </ul>
+          <ImageGallery figures={figures} />
         </section>
       )}
     </div>
