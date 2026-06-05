@@ -3,6 +3,10 @@
 # `claude` context with the /tdd skill loaded, picking the next dependency-unblocked
 # issue. Stops early when an iteration prints <promise>COMPLETE</promise>.
 #
+# Each iteration runs inside the 'ralph-zal' Docker sandbox (sbx) instead of an
+# unsandboxed --dangerously-skip-permissions process on the host: the agent keeps
+# full autonomy *inside* the VM, which only sees the workspaces mounted below.
+#
 # Usage: ./ralph/afk-ralph.sh [N]   (default N=16)
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -10,12 +14,24 @@ cd "$(dirname "$0")/.."
 N="${1:-16}"
 mkdir -p ralph
 
+source ralph/sandbox-lib.sh
+SANDBOX=ralph-zal
+ralph_sandbox_ensure "$SANDBOX" \
+  /Users/bojan/www/zal/website \
+  /Users/bojan/www/zal/download \
+  /Users/bojan/www/zal/scripts:ro \
+  /Users/bojan/www/letece-kele/website:ro \
+  /Users/bojan/www/mojterapevt/website:ro \
+  /Users/bojan/www/slackalien/studio-website:ro \
+  /Users/bojan/.agents/skills:ro || exit 1
+
 for ((i=1; i<=N; i++)); do
   ts=$(date +%Y%m%d-%H%M%S)
   log="ralph/iteration-$ts.log"
   echo "===== Ralph AFK iteration $i/$N -> $log ====="
 
-  claude -p "/tdd $(cat ralph/PROMPT.md)" \
+  sbx run "$SANDBOX" -- \
+    -p "/tdd $(cat ralph/PROMPT.md)" \
     --model claude-sonnet-4-6 \
     --dangerously-skip-permissions \
     --add-dir /Users/bojan/www/zal \
