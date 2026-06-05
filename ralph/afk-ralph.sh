@@ -16,6 +16,7 @@ for ((i=1; i<=N; i++)); do
   echo "===== Ralph AFK iteration $i/$N -> $log ====="
 
   claude -p "/tdd $(cat ralph/PROMPT.md)" \
+    --model claude-sonnet-4-6 \
     --dangerously-skip-permissions \
     --add-dir /Users/bojan/www/zal \
     --add-dir /Users/bojan/www/letece-kele/website \

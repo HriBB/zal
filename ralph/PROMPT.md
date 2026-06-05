@@ -47,7 +47,7 @@ The /tdd skill is loaded for this session. Follow it: red-green-refactor on ever
 ## Finish the iteration (then STOP)
 
 - Commit to `main` with a clear message ending:
-  `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
+  `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
   and push to origin.
 - If — and only if — all acceptance criteria are genuinely met: tick the checkboxes and `gh issue close <n> --comment "<summary + test/build results>"`. Otherwise leave it open and comment exactly what remains.
 - Append a dated entry to `ralph/progress.md`: issue number, what you built, test/build results, anything deferred or surprising for the next iteration.

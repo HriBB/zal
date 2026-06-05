@@ -12,6 +12,7 @@ log="ralph/iteration-$ts.log"
 
 echo "===== Ralph (HITL) single iteration -> $log ====="
 claude -p "/tdd $(cat ralph/PROMPT.md)" \
+  --model claude-sonnet-4-6 \
   --dangerously-skip-permissions \
   --add-dir /Users/bojan/www/zal \
   --add-dir /Users/bojan/www/letece-kele/website \
