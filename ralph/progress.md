@@ -340,3 +340,62 @@ opens+closes via keyboard).
   inline fix in RichTextBlock.tsx).
 - `filmoteka-zal` was confirmed to have 0 gallery scans (all YouTube embeds, handled
   by embedBlock from issue #7) — no gallery block needed or added.
+
+---
+
+## 2026-06-05 — Issue #9: Posts + categories (schema, category collapse, /novice + /arhivalija-meseca, seed)
+
+**Built** the complete posts + categories vertical slice:
+
+- **`app/lib/wp-post.ts`**: `CATEGORY_COLLAPSE` table maps 10 WP category ids to
+  4 canonical slugs (nerazvrsceno id=1 dissolves; year variants 71/72/80/149/150
+  all → `arhivalija-meseca`). `collapseCategories` deduplicates in input order.
+  `wpPostToPostDoc` maps WP REST post → Sanity seed doc: stable `_id` (truncated
+  to 128-char Sanity limit for 17 posts with very long slugs), date passthrough,
+  category refs, mainImage from `mediaById` lookup, blocks via same
+  `splitHtmlSegments`/`cleanWpHtml` pipeline as pages (no ngg handling — posts
+  don't have ngg shortcodes), `_oldPath` from WP link.
+- **`app/lib/wp-post.test.ts`**: 18 unit tests (RED→GREEN): category collapse table,
+  year-variant dedup, multi-cat, nerazvrsceno dissolve, title entity decode, slug
+  passthrough, date passthrough, _oldPath from link, mainImage from mediaById, no
+  mainImage when featured_media=0, block output.
+- **Sanity schema**: `categoryType` (title+slug doc), `postType` (title/slug/
+  datetime/categories[ref→category]/mainImage(figure)/blocks[from blockRegistry]/
+  _oldPath). Both registered in `schemaTypes/index.ts`. Desk sidebar updated:
+  Novice + Kategorije list items added.
+- **`app/sanity/queries.ts`**: `postListQuery` (combined `{posts,total}` object
+  projection, `$cat`/`$offset`/`$lastIndex` params, inclusive GROQ slice),
+  `postQuery` (single post + blocks), `arhivaListQuery` (all arhivalija-meseca),
+  `categoriesQuery`. Added shared `BLOCKS_PROJECTION` constant — both page and
+  post queries derive the block projection from it.
+- **Routes**: `/novice` (category filter chips nav + 12-per-page pagination via
+  `?kat=` / `?stran=`), `/novice/:slug` (post detail with mainImage/date/
+  category chips/blocks + breadcrumb), `/arhivalija-meseca` (series listing with
+  thumbnail strip). All wired before the catch-all in `routes.ts`.
+- **`scripts/seed-posts.ts`**: seeds 4 canonical category docs then all 311
+  published posts. `mainImage` uploaded via in-memory URL→assetId memo. Body
+  and gallery figures resolved same as `seed-pages`. Idempotent (`createOrReplace`
+  + stable ids). `pnpm seed:posts` added to `package.json`.
+- **E2E** (`e2e/novice.spec.ts`): 6 new tests — listing renders with post links,
+  filter chips nav present, category filter renders, listing→detail navigation
+  with breadcrumb, 404 on missing slug, /arhivalija-meseca listing renders.
+
+**TDD**: RED→GREEN per seam — `collapseCategories` (7 tests), `wpPostToPostDoc`
+(11 tests).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (11 files, 133 tests), `pnpm build` ✓,
+`pnpm test:e2e` ✓ (17 tests: 11 prior + 6 new). Seed: 4 categories + 311 posts written.
+
+**Deferred / notes for next iteration**:
+- ~120 mainImage upload failures (Sanity "Bad Request" — encoded filenames,
+  .gif files, some .jpg files rejected by Sanity image validator). Same pattern
+  as pages. Posts render without those images. Cosmetic only.
+- Slug truncation: 17 posts had WP slugs > 123 chars; `makeSafeId` truncates to
+  fit 128-char Sanity limit. Sanity `slug.current` stores the FULL WP slug (for
+  routing), while `_id` is truncated. No collision risk given the data.
+- `_oldPath` stored in every post doc (`/YYYY/MM/DD/slug/`) — issue #15 (redirects)
+  can consume this to build the 301 map.
+- `BLOCKS_PROJECTION` extracted as shared constant in `queries.ts` — pageQuery now
+  derives its projection from it too (refactor done in this iteration).
+- Category filter `?kat=` uses `""` (empty string) as the "all" sentinel, matching
+  Sanity's GROQ `$cat == ""` comparison (null/undefined params caused GROQ errors).
