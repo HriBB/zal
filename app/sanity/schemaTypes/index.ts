@@ -6,8 +6,10 @@ import { richTextBlockType } from './blocks/richTextBlock'
 import { tableCellType, tableBlockType, tableRowType } from './blocks/tableBlock'
 import { embedBlockType } from './blocks/embedBlock'
 import { galleryBlockType } from './blocks/galleryBlock'
+import { archiveItemType } from './documents/archiveItem'
 import { archiveUnitType } from './documents/archiveUnit'
 import { categoryType } from './documents/category'
+import { collectionType } from './documents/collection'
 import { pageType } from './documents/page'
 import { postType } from './documents/post'
 import { siteSettingsType } from './singletons/siteSettings'
@@ -24,8 +26,10 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   embedBlockType,
   galleryBlockType,
   // Documents
+  archiveItemType,
   archiveUnitType,
   categoryType,
+  collectionType,
   pageType,
   postType,
   siteSettingsType,

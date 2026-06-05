@@ -12,6 +12,10 @@ export default [
     route('arhivalija-meseca', './routes/website/arhivalija-meseca.tsx'),
     // Archive units.
     route('enote/:slug', './routes/website/enote.$slug.tsx'),
+    // Digiteka: digital collections.
+    route('digiteka', './routes/website/digiteka.tsx'),
+    route('digiteka/:collection', './routes/website/digiteka.$collection.tsx'),
+    route('digiteka/:collection/:item', './routes/website/digiteka.$collection.$item.tsx'),
     // Catch-all page route — resolves nested pages via parent chain (ADR-0004).
     // Must come last so specific routes above take priority.
     route('*', './routes/website/page.tsx'),

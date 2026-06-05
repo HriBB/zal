@@ -202,6 +202,110 @@ export const arhivaListQuery = defineSanityQuery<PostSummary[]>(
     }`,
 )
 
+// ── Digiteka: collection + archiveItem ───────────────────────────────────────
+
+export type CollectionSummary = {
+  _id: string
+  name: string
+  slug: string
+  itemCount: number
+  description: string | null
+  externalUrl: string | null
+}
+
+export type CollectionData = CollectionSummary
+
+export type MetadataEntry = {
+  _key: string
+  label: string
+  value: string
+}
+
+export type ArchiveItemSummary = {
+  _id: string
+  title: string
+  slug: string
+  collectionSlug: string
+}
+
+export type ArchiveItemData = {
+  _id: string
+  title: string
+  slug: string
+  collectionSlug: string
+  collectionName: string
+  metadata: MetadataEntry[]
+  gallery: Array<{
+    _key: string
+    alt: string | null
+    caption: string | null
+    asset: {
+      _id: string
+      url: string
+      metadata: { lqip: string | null; dimensions: { width: number; height: number } | null }
+    } | null
+  }>
+  externalUrl: string | null
+  _oldPath: string | null
+}
+
+export type ArchiveItemListData = {
+  items: ArchiveItemSummary[]
+  total: number
+}
+
+export const collectionsQuery = defineSanityQuery<CollectionSummary[]>(
+  `*[_type == "collection"] | order(name asc){
+    _id,
+    name,
+    "slug": slug.current,
+    "itemCount": count(*[_type == "archiveItem" && references(^._id)]),
+    description,
+    externalUrl
+  }`,
+)
+
+export const collectionQuery = defineSanityQuery<CollectionData | null, { slug: string }>(
+  `*[_type == "collection" && slug.current == $slug][0]{
+    _id,
+    name,
+    "slug": slug.current,
+    "itemCount": count(*[_type == "archiveItem" && references(^._id)]),
+    description,
+    externalUrl
+  }`,
+)
+
+export const archiveItemListQuery = defineSanityQuery<
+  ArchiveItemListData,
+  { collectionId: string; offset: number; lastIndex: number }
+>(
+  `{
+    "items": *[_type == "archiveItem" && collection._ref == $collectionId]
+      | order(title asc)[$offset..$lastIndex]{
+        _id,
+        title,
+        "slug": slug.current,
+        "collectionSlug": collection->slug.current
+      },
+    "total": count(*[_type == "archiveItem" && collection._ref == $collectionId])
+  }`,
+)
+
+export const archiveItemQuery = defineSanityQuery<ArchiveItemData | null, { slug: string; collectionSlug: string }>(
+  `*[_type == "archiveItem" && slug.current == $slug && collection->slug.current == $collectionSlug][0]{
+    _id,
+    title,
+    "slug": slug.current,
+    "collectionSlug": collection->slug.current,
+    "collectionName": collection->name,
+    metadata[]{_key, label, value},
+    gallery[]{_key, alt, caption, asset->{_id, url, metadata{lqip, dimensions}}},
+    externalUrl,
+    _oldPath
+  }`,
+)
+
 // ── Archive unit ──────────────────────────────────────────────────────────────
 
 export type HourSlot = {

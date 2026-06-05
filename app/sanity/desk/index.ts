@@ -1,4 +1,4 @@
-import { CogIcon, DocumentIcon, PinIcon, TagIcon } from '@sanity/icons'
+import { CogIcon, DocumentIcon, ImageIcon, PinIcon, TagIcon } from '@sanity/icons'
 
 import type {
   DefaultDocumentNodeResolver,
@@ -42,6 +42,17 @@ export const structure: StructureResolver = (S) =>
         .title('Enote')
         .icon(PinIcon)
         .child(S.documentTypeList('archiveUnit').title('Enote')),
+      S.divider(),
+      S.listItem()
+        .id('collection')
+        .title('Digiteka – Zbirke')
+        .icon(ImageIcon)
+        .child(S.documentTypeList('collection').title('Zbirke')),
+      S.listItem()
+        .id('archiveItem')
+        .title('Digiteka – Arhivalije')
+        .icon(ImageIcon)
+        .child(S.documentTypeList('archiveItem').title('Arhivalije')),
     ])
 
 export const defaultDocumentNode: DefaultDocumentNodeResolver = (S) => S.document()
