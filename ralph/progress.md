@@ -781,3 +781,50 @@ trailing-slash 301, sitemap 200+XML, robots 200+sitemap ref, rss 200+envelope).
   iterations — figure-inside-richTextBlock rendering is cosmetic only.
 - The full scrape (`pnpm scrape`) and associated re-seeds (seed:digiteka, seed:scans) are
   one-time data ops to be run when ready; they're resumable and idempotent.
+
+---
+
+## 2026-06-05 — Issue #18: A11y compliance (WCAG 2.1 AA, keyboard nav, skip link, Lighthouse gate)
+
+**Built** the full accessibility compliance pass — all automated criteria met; one HITL
+checkbox (publish `/izjava-o-dostopnosti`) deferred for human review:
+
+- **Skip link**: `<a href="#main-content">` in `layout.tsx` — `fixed -translate-y-full`
+  default, slides into viewport on `:focus-visible` (`focus-visible:translate-y-0`).
+  First Tab stop on every public page.
+- **`main#main-content`**: added `id="main-content"` to `<main>` in `layout.tsx` so the
+  skip link target is always present.
+- **Header nav keyboard**: `Header.tsx` rewritten — CSS `group-hover:flex` dropdown
+  replaced with `DropdownNavItem` component using `useState(false)`. Opens on
+  `onFocus` (any descendant), closes on `onBlur` when focus leaves the `<li>` via
+  `relatedTarget` check. `data-dropdown=""` marks items with children for E2E selectors.
+  Hover still works (`onMouseEnter`/`onMouseLeave`). No more keyboard-inaccessible dropdowns.
+- **Global `:focus-visible`**: added to `app.css @layer base` — `outline: 2px solid
+  var(--zal); outline-offset: 2px; border-radius: 2px`. Branded red ring on all
+  keyboard-focused elements; overrides browser defaults consistently.
+- **Accordion keyboard**: already keyboard-accessible (`<button>` natively); added
+  explicit E2E test for `focus()` + `Enter` key activation.
+- **`scripts/seed-izjava.ts`**: seeds `/izjava-o-dostopnosti` as a Sanity DRAFT
+  (`drafts.page.izjava-o-dostopnosti`) with the standard Slovenian accessibility
+  statement template. `pnpm seed:izjava` added. NOT published — needs human review
+  and legal wording sign-off before publishing from Studio.
+- **Lighthouse gate**: documented in README with CLI commands and 95 threshold table.
+
+**TDD**: RED→GREEN on 6 E2E tests — `e2e/a11y.spec.ts`: skip link exists, main has id,
+Tab focuses skip link and enters viewport, nav dropdown visible on focus, focus ring
+outline > 0, accordion keyboard Enter activates.
+
+**Results**: `pnpm typecheck ✓`, `pnpm test ✓` (238 tests, 24 files),
+`pnpm build ✓`, `pnpm test:e2e ✓` (59 tests: 53 prior + 6 new a11y tests).
+
+**Notes for next iteration / human action required**:
+- Issue #18 is LEFT OPEN — the `/izjava-o-dostopnosti` checkbox requires human review:
+  run `pnpm seed:izjava` → open Studio → Pages → "Izjava o dostopnosti" → review
+  the legal wording (update `[DATUM]` placeholders, conformance status) → Publish.
+  Only then close the issue.
+- The sandbox (ubuntu26.04-arm64) requires Playwright browser install via
+  `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-arm64 pnpm exec playwright install chromium`
+  and `sudo ... playwright install-deps chromium` — once installed, `pnpm test:e2e`
+  works without the override. Future fresh sandboxes will need this one-time setup.
+- All prior notes about `[@portabletext/react] Unknown block type "figure"` warnings,
+  pending full scrape, and one-time seed re-runs remain outstanding.
