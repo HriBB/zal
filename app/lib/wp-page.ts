@@ -23,7 +23,13 @@ export type TablePageBlock = {
   rows: WpTableRow[]
 }
 
-export type PageBlock = RichTextPageBlock | TablePageBlock
+export type EmbedPageBlock = {
+  _type: 'embedBlock'
+  _key: string
+  url: string
+}
+
+export type PageBlock = RichTextPageBlock | TablePageBlock | EmbedPageBlock
 
 export type PageSeedDoc = {
   _id: string
@@ -111,6 +117,12 @@ export function wpPageToPageDoc(
           rows: tableData.rows,
         })
       }
+    } else if (segment.kind === 'embed') {
+      blocks.push({
+        _type: 'embedBlock',
+        _key: `eb-${blocks.length}`,
+        url: segment.src,
+      })
     } else {
       const { portableText } = cleanWpHtml(segment.html)
       if (portableText.length > 0) {

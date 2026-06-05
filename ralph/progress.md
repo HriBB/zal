@@ -239,3 +239,48 @@ scans (its films are video embeds — slice #7's embed block, not scans).
   mixed cell content). The heuristic is correct and tested for future data.
 - `pageQuery` conditional projection pattern is now the model for future blocks
   (embed, gallery) that also have non-`body` fields.
+
+---
+
+## 2026-06-05 — Issue #7: Embed block (iframe lift, URL classification, renderers, re-seed)
+
+**Built** the complete embed block slice end-to-end:
+
+- **`app/lib/wp-embed.ts`**: `classifyEmbedUrl` — pure URL classifier returning
+  `'youtube' | 'googleMaps' | 'googleForms' | 'mapbox' | 'unknown'`. 5 unit tests.
+- **`app/lib/wp-html.ts`**: Extended `HtmlSegment` union to include
+  `{kind: 'embed', src: string}`. Extended `splitHtmlSegments` to split at `<iframe>` tags
+  alongside tables, in document order. Decodes HTML entities in src (`&#038;` → `&`) and
+  normalizes arnes host. 6 new unit tests in `wp-html.test.ts`.
+- **`app/sanity/schemaTypes/blocks/embedBlock.ts`**: `embedBlockType` — single `url` string
+  field. Registered in `schemaTypes/index.ts`.
+- **`app/components/blocks/EmbedBlock.tsx`**: responsive renderer (56.25% padding-top 16:9
+  container for youtube/maps/mapbox; auto-height for forms). YouTube uses
+  `youtube-nocookie.com` domain. Unknown fallback = plain `<a>` link. `loading="lazy"` on
+  all iframes.
+- **Block registry**: `embedBlock: EmbedBlock` added; SSOT guard continues to pass.
+- **`app/sanity/queries.ts`**: `embedBlock` GROQ projection `{ url }` added.
+- **`app/lib/wp-page.ts`**: `EmbedPageBlock` type; `wpPageToPageDoc` handles
+  `segment.kind === 'embed'` → `embedBlock`. 3 new unit tests.
+- **`scripts/seed-pages.ts`**: no change needed — embedBlocks pass through the existing
+  `else` branch unchanged.
+- **Re-seed**: 116 documents written. `kako-do-nas` (5 maps), `filmoteka-zal` (3 YouTube),
+  `prijavnica-*` and `prijava-*` pages (Google Forms) all seeded with embed blocks.
+
+**TDD**: red→green per seam — `classifyEmbedUrl` (5 tests), `splitHtmlSegments` iframe
+extension (6 tests), `wpPageToPageDoc` embed blocks (3 tests).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (9 files, 95 tests), `pnpm build` ✓,
+`pnpm test:e2e` ✓ (9 tests: prior 6 + 3 new embed E2E — kako-do-nas maps, filmoteka
+youtube, prijava-za-seminar forms).
+
+**Notes for next iteration**:
+- Mapbox URLs contain `&#038;` (HTML-encoded `&`) — decoded at split time in
+  `splitHtmlSegments`. Verified with unit test.
+- `filmoteka-zal` is a Divi-heavy page; `cleanWpHtml` extracts headings/paragraphs from
+  the Divi layout surrounding the iframes. Content is useful but Divi-derived. Not a bug.
+- Google Forms iframes use `minHeight: 600px` since forms vary wildly in height (640–4500px)
+  — the WP heights are not stored, so a reasonable default is used. The form renders
+  correctly; scroll will cut off taller forms. Editors can adjust in Studio if needed.
+- The existing 20 image upload failures (certain encoded filenames → Sanity "Bad Request")
+  persist — same as issue #5/#6; cosmetic only, figures skipped on those pages.

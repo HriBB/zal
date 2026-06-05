@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { cleanSlugForPage, wpPageToPageDoc } from './wp-page'
-import type { RichTextPageBlock, TablePageBlock } from './wp-page'
+import type { EmbedPageBlock, RichTextPageBlock, TablePageBlock } from './wp-page'
 
 // ── cleanSlugForPage ───────────────────────────────────────────────────────────
 
@@ -137,5 +137,53 @@ describe('wpPageToPageDoc – table blocks', () => {
     const tb = doc.blocks[0] as TablePageBlock
     expect(tb.rows).toHaveLength(1)
     expect(tb.rows[0].cells[0].text).toBe('Naslov')
+  })
+})
+
+// ── wpPageToPageDoc – embed blocks ─────────────────────────────────────────────
+
+describe('wpPageToPageDoc – embed blocks', () => {
+  test('page with single iframe produces an embedBlock', () => {
+    const page = {
+      ...mockWpPage,
+      content: {
+        rendered:
+          '<p>Video:</p><iframe src="https://www.youtube.com/embed/abc123"></iframe>',
+      },
+    }
+    const doc = wpPageToPageDoc(page, 'kontakti', null)
+    const embeds = doc.blocks.filter((b) => b._type === 'embedBlock')
+    expect(embeds).toHaveLength(1)
+    const eb = embeds[0] as EmbedPageBlock
+    expect(eb.url).toBe('https://www.youtube.com/embed/abc123')
+  })
+
+  test('multiple iframes produce multiple embedBlocks in document order', () => {
+    const page = {
+      ...mockWpPage,
+      content: {
+        rendered:
+          '<iframe src="https://www.youtube.com/embed/v1"></iframe>' +
+          '<iframe src="https://www.youtube.com/embed/v2"></iframe>',
+      },
+    }
+    const doc = wpPageToPageDoc(page, 'kontakti', null)
+    const embeds = doc.blocks.filter((b) => b._type === 'embedBlock') as EmbedPageBlock[]
+    expect(embeds).toHaveLength(2)
+    expect(embeds[0].url).toContain('v1')
+    expect(embeds[1].url).toContain('v2')
+  })
+
+  test('embedBlock url has HTML entities decoded', () => {
+    const page = {
+      ...mockWpPage,
+      content: {
+        rendered:
+          '<iframe src="https://api.mapbox.com/styles?token=abc&#038;fresh=true"></iframe>',
+      },
+    }
+    const doc = wpPageToPageDoc(page, 'kontakti', null)
+    const eb = doc.blocks[0] as EmbedPageBlock
+    expect(eb.url).toBe('https://api.mapbox.com/styles?token=abc&fresh=true')
   })
 })

@@ -245,7 +245,7 @@ describe('splitHtmlSegments', () => {
     const segments = splitHtmlSegments('<p>Hello</p><p>World</p>')
     expect(segments).toHaveLength(1)
     expect(segments[0].kind).toBe('prose')
-    expect(segments[0].html).toContain('Hello')
+    if (segments[0].kind === 'prose') expect(segments[0].html).toContain('Hello')
   })
 
   test('returns single table segment for table-only HTML', () => {
@@ -264,8 +264,8 @@ describe('splitHtmlSegments', () => {
     expect(segments[0].kind).toBe('prose')
     expect(segments[1].kind).toBe('table')
     expect(segments[2].kind).toBe('prose')
-    expect(segments[0].html).toContain('Before')
-    expect(segments[2].html).toContain('After')
+    if (segments[0].kind === 'prose') expect(segments[0].html).toContain('Before')
+    if (segments[2].kind === 'prose') expect(segments[2].html).toContain('After')
   })
 
   test('handles multiple consecutive tables', () => {
@@ -276,5 +276,59 @@ describe('splitHtmlSegments', () => {
     expect(segments[0].kind).toBe('prose')
     expect(segments[1].kind).toBe('table')
     expect(segments[2].kind).toBe('table')
+  })
+
+  test('extracts iframe as embed segment with its src', () => {
+    const segments = splitHtmlSegments(
+      '<p>Before</p><iframe src="https://www.youtube.com/embed/abc"></iframe><p>After</p>',
+    )
+    expect(segments).toHaveLength(3)
+    expect(segments[0].kind).toBe('prose')
+    expect(segments[1].kind).toBe('embed')
+    if (segments[1].kind === 'embed') {
+      expect(segments[1].src).toBe('https://www.youtube.com/embed/abc')
+    }
+    expect(segments[2].kind).toBe('prose')
+  })
+
+  test('extracts multiple iframes in document order', () => {
+    const html =
+      '<p>A</p><iframe src="https://www.youtube.com/embed/v1"></iframe>' +
+      '<p>B</p><iframe src="https://www.youtube.com/embed/v2"></iframe>'
+    const segments = splitHtmlSegments(html)
+    const embeds = segments.filter((s) => s.kind === 'embed')
+    expect(embeds).toHaveLength(2)
+    if (embeds[0].kind === 'embed') expect(embeds[0].src).toContain('v1')
+    if (embeds[1].kind === 'embed') expect(embeds[1].src).toContain('v2')
+  })
+
+  test('decodes HTML entities in iframe src (&#038; → &)', () => {
+    const segments = splitHtmlSegments(
+      '<iframe src="https://api.mapbox.com/styles?access_token=abc&#038;fresh=true"></iframe>',
+    )
+    expect(segments).toHaveLength(1)
+    if (segments[0].kind === 'embed') {
+      expect(segments[0].src).toBe(
+        'https://api.mapbox.com/styles?access_token=abc&fresh=true',
+      )
+    }
+  })
+
+  test('normalizes arnes host in iframe src', () => {
+    const segments = splitHtmlSegments(
+      '<iframe src="http://zal-lj.splet.arnes.si/embed/test"></iframe>',
+    )
+    if (segments[0].kind === 'embed') {
+      expect(segments[0].src).toBe('https://www.zal-lj.si/embed/test')
+    }
+  })
+
+  test('preserves table and iframe segments together in document order', () => {
+    const segments = splitHtmlSegments(
+      '<table><tr><td>T</td></tr></table><iframe src="https://example.com/e"></iframe>',
+    )
+    expect(segments).toHaveLength(2)
+    expect(segments[0].kind).toBe('table')
+    expect(segments[1].kind).toBe('embed')
   })
 })

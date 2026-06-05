@@ -333,6 +333,7 @@ export type WpTableData = {
 export type HtmlSegment =
   | { kind: 'prose'; html: string }
   | { kind: 'table'; html: string }
+  | { kind: 'embed'; src: string }
 
 function flattenCellHtml(html: string): string {
   return decodeEntities(html.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
@@ -400,21 +401,52 @@ export function extractTable(tableHtml: string): WpTableData {
   return { rows }
 }
 
-/** Split HTML into interleaved prose and table segments (document order). */
-export function splitHtmlSegments(html: string): HtmlSegment[] {
-  const segments: HtmlSegment[] = []
-  const re = /<table\b[^>]*>[\s\S]*?<\/table>/gi
-  let last = 0
-  let m: RegExpExecArray | null
+const EMBED_ENTITY_RE = /&#(\d+);/g
 
-  while ((m = re.exec(html)) !== null) {
-    if (m.index > last) {
-      segments.push({ kind: 'prose', html: html.slice(last, m.index) })
-    }
-    segments.push({ kind: 'table', html: m[0] })
-    last = re.lastIndex
+function decodeEmbedSrc(raw: string): string {
+  return normalizeHost(
+    raw
+      .replace(EMBED_ENTITY_RE, (_, n) => String.fromCodePoint(Number(n)))
+      .replace(/&amp;/gi, '&'),
+  )
+}
+
+function iframeSrc(tag: string): string | undefined {
+  const raw = attr(tag, 'src')
+  return raw ? decodeEmbedSrc(raw) : undefined
+}
+
+type RawSegment = { start: number; end: number; seg: HtmlSegment }
+
+/** Split HTML into interleaved prose, table, and embed segments (document order). */
+export function splitHtmlSegments(html: string): HtmlSegment[] {
+  const raw: RawSegment[] = []
+
+  const tableRe = /<table\b[^>]*>[\s\S]*?<\/table>/gi
+  let m: RegExpExecArray | null
+  while ((m = tableRe.exec(html)) !== null) {
+    raw.push({ start: m.index, end: tableRe.lastIndex, seg: { kind: 'table', html: m[0] } })
   }
 
+  const iframeRe = /<iframe\b[^>]*>[\s\S]*?<\/iframe>|<iframe\b[^>]*\/>/gi
+  while ((m = iframeRe.exec(html)) !== null) {
+    const src = iframeSrc(m[0])
+    if (src) {
+      raw.push({ start: m.index, end: iframeRe.lastIndex, seg: { kind: 'embed', src } })
+    }
+  }
+
+  raw.sort((a, b) => a.start - b.start)
+
+  const segments: HtmlSegment[] = []
+  let last = 0
+  for (const { start, end, seg } of raw) {
+    if (start > last) {
+      segments.push({ kind: 'prose', html: html.slice(last, start) })
+    }
+    segments.push(seg)
+    last = end
+  }
   if (last < html.length) {
     segments.push({ kind: 'prose', html: html.slice(last) })
   }

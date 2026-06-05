@@ -104,6 +104,9 @@ export const pageQuery = defineSanityQuery<PageData | null, { slug: string }>(
           isHeader,
           cells[]{_key, text}
         }
+      },
+      _type == "embedBlock" => {
+        url
       }
     }
   }`,
