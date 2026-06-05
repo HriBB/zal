@@ -2,6 +2,7 @@ import { Link, useLoaderData } from 'react-router'
 
 import type { Route } from './+types/novice'
 
+import { buildMeta } from '~/lib/meta'
 import { loadSanity } from '~/sanity/data.server'
 import { categoriesQuery, postListQuery } from '~/sanity/queries'
 
@@ -22,8 +23,12 @@ export async function loader({ request }: Route.LoaderArgs) {
   return { listData, catsData, cat, stran }
 }
 
-export function meta() {
-  return [{ title: 'Novice — ZAL' }]
+export function meta({ location }: Route.MetaArgs) {
+  return buildMeta({
+    title: 'Novice',
+    description: 'Novice, obvestila in dogodki Zgodovinskega arhiva Ljubljana.',
+    pathname: location.pathname,
+  })
 }
 
 export default function NoviceRoute() {

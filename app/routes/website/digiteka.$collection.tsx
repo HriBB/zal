@@ -1,5 +1,6 @@
 import { Link, useLoaderData, useSearchParams } from 'react-router'
 
+import { buildMeta } from '~/lib/meta'
 import { loadSanity } from '~/sanity/data.server'
 import { collectionQuery, archiveItemListQuery } from '~/sanity/queries'
 
@@ -26,12 +27,11 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return { collData, listData, page, pageCount }
 }
 
-export function meta({ data }: Route.MetaArgs) {
-  const name = data?.collData?.initial?.data?.name ?? 'Zbirka'
-  return [
-    { title: `${name} – Digiteka – ZAL` },
-    { name: 'description', content: `Arhivalije v zbirki ${name}` },
-  ]
+export function meta({ data, location }: Route.MetaArgs) {
+  const coll = data?.collData?.initial?.data
+  const name = coll?.name ?? 'Zbirka'
+  const description = coll?.description ?? `Arhivalije v zbirki ${name}.`
+  return buildMeta({ title: name, description, pathname: location.pathname })
 }
 
 export function ErrorBoundary() {

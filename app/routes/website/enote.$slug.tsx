@@ -2,6 +2,7 @@ import { Link, useLoaderData } from 'react-router'
 
 import type { Route } from './+types/enote.$slug'
 
+import { buildMeta } from '~/lib/meta'
 import { loadSanity } from '~/sanity/data.server'
 import { archiveUnitQuery } from '~/sanity/queries'
 
@@ -13,9 +14,15 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return data
 }
 
-export function meta({ data }: Route.MetaArgs) {
+export function meta({ data, location }: Route.MetaArgs) {
   const unit = data?.initial?.data
-  return [{ title: unit?.name ? `${unit.name} — ZAL` : 'ZAL' }]
+  if (!unit) return [{ title: 'ZAL' }]
+  return buildMeta({
+    title: unit.name,
+    description: `${unit.name}, območna enota Zgodovinskega arhiva Ljubljana.`,
+    pathname: location.pathname,
+    ogImageUrl: unit.photo?.asset?.url ?? null,
+  })
 }
 
 export default function EnoteDetailRoute() {

@@ -7,8 +7,10 @@ import { Breadcrumbs } from '~/components/Breadcrumbs'
 import redirectMap from '~/data/redirects.json'
 import { normalizeOldPath } from '~/lib/redirects'
 import { matchesChain } from '~/lib/page-chain'
+import { buildMeta, ZAL_ORIGIN } from '~/lib/meta'
+import { buildBreadcrumbJsonLd } from '~/lib/jsonld'
 import { loadSanity } from '~/sanity/data.server'
-import { pageQuery } from '~/sanity/queries'
+import { pageQuery, type BreadcrumbItem } from '~/sanity/queries'
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const path = (params as Record<string, string>)['*'] ?? ''
@@ -36,9 +38,36 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return data
 }
 
-export function meta({ data }: Route.MetaArgs) {
+export function meta({ data, location }: Route.MetaArgs) {
   const page = data?.initial?.data
-  return [{ title: page?.title ? `${page.title} — ZAL` : 'ZAL' }]
+  if (!page) return [{ title: 'ZAL' }]
+
+  const baseMeta = buildMeta({
+    title: page.title,
+    description: `${page.title} na spletni strani Zgodovinskega arhiva Ljubljana.`,
+    pathname: location.pathname,
+  })
+
+  if (page.breadcrumbs.length === 0) return baseMeta
+
+  const breadcrumbItems = buildPageBreadcrumbItems(page.breadcrumbs, page.title, page.slug)
+  return [...baseMeta, { 'script:ld+json': buildBreadcrumbJsonLd(breadcrumbItems) }]
+}
+
+function buildPageBreadcrumbItems(
+  breadcrumbs: BreadcrumbItem[],
+  currentTitle: string,
+  currentSlug: string,
+) {
+  const ancestors = breadcrumbs.map((b, i) => ({
+    name: b.title,
+    url: `${ZAL_ORIGIN}/${breadcrumbs.slice(0, i + 1).map((x) => x.slug).join('/')}`,
+  }))
+  return [
+    { name: 'Domov', url: `${ZAL_ORIGIN}/` },
+    ...ancestors,
+    { name: currentTitle, url: `${ZAL_ORIGIN}/${[...breadcrumbs.map((b) => b.slug), currentSlug].join('/')}` },
+  ]
 }
 
 export default function PageRoute() {

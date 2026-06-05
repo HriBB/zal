@@ -3,6 +3,8 @@ import { Link, useLoaderData } from 'react-router'
 import type { Route } from './+types/novice.$slug'
 
 import { BlockList } from '~/components/blocks/BlockRenderer'
+import { buildMeta, ZAL_ORIGIN } from '~/lib/meta'
+import { buildNewsArticleJsonLd } from '~/lib/jsonld'
 import { loadSanity } from '~/sanity/data.server'
 import { postQuery } from '~/sanity/queries'
 
@@ -14,9 +16,30 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return data
 }
 
-export function meta({ data }: Route.MetaArgs) {
+export function meta({ data, location }: Route.MetaArgs) {
   const post = data?.initial?.data
-  return [{ title: post?.title ? `${post.title} — ZAL` : 'ZAL' }]
+  if (!post) return [{ title: 'ZAL' }]
+
+  const ogImageUrl = post.mainImage?.asset?.url ?? null
+  const canonical = `${ZAL_ORIGIN}${location.pathname}`
+
+  return [
+    ...buildMeta({
+      title: post.title,
+      description: post.title,
+      pathname: location.pathname,
+      ogImageUrl,
+      ogType: 'article',
+    }),
+    {
+      'script:ld+json': buildNewsArticleJsonLd({
+        title: post.title,
+        url: canonical,
+        datePublished: post.date,
+        imageUrl: ogImageUrl,
+      }),
+    },
+  ]
 }
 
 export default function NoviceDetailRoute() {

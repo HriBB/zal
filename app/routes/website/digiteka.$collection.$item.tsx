@@ -2,6 +2,8 @@ import { Link, useLoaderData } from 'react-router'
 
 import { ImageGallery } from '~/components/ImageGallery'
 import type { FigureData } from '~/components/ImageGallery'
+import { buildMeta, ZAL_ORIGIN } from '~/lib/meta'
+import { buildBreadcrumbJsonLd } from '~/lib/jsonld'
 import { loadSanity } from '~/sanity/data.server'
 import { archiveItemQuery } from '~/sanity/queries'
 
@@ -16,11 +18,24 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return data
 }
 
-export function meta({ data }: Route.MetaArgs) {
-  const title = data?.initial?.data?.title ?? 'Arhivalija'
+export function meta({ data, location }: Route.MetaArgs) {
+  const item = data?.initial?.data
+  if (!item) return [{ title: 'ZAL' }]
+
+  const breadcrumbItems = [
+    { name: 'Domov', url: `${ZAL_ORIGIN}/` },
+    { name: 'Digiteka', url: `${ZAL_ORIGIN}/digiteka` },
+    { name: item.collectionName, url: `${ZAL_ORIGIN}/digiteka/${item.collectionSlug}` },
+    { name: item.title, url: `${ZAL_ORIGIN}${location.pathname}` },
+  ]
+
   return [
-    { title: `${title} – Digiteka – ZAL` },
-    { name: 'description', content: `Arhivalija: ${title}` },
+    ...buildMeta({
+      title: item.title,
+      description: `Arhivalija: ${item.title} iz zbirke ${item.collectionName}.`,
+      pathname: location.pathname,
+    }),
+    { 'script:ld+json': buildBreadcrumbJsonLd(breadcrumbItems) },
   ]
 }
 

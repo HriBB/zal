@@ -2,6 +2,8 @@ import { Form, Link } from 'react-router'
 
 import type { Route } from './+types/home'
 
+import { buildMeta, ZAL_NAME, ZAL_ORIGIN } from '~/lib/meta'
+import { buildOrganizationJsonLd } from '~/lib/jsonld'
 import { loadSanity } from '~/sanity/data.server'
 import {
   homeArhavalijaQuery,
@@ -14,15 +16,24 @@ import {
   type HomePageData,
 } from '~/sanity/queries'
 
-export const meta: Route.MetaFunction = () => [
-  { title: 'Zgodovinski arhiv Ljubljana' },
-  {
-    name: 'description',
-    content:
-      'Zgodovinski arhiv Ljubljana hrani arhivsko gradivo osrednje Slovenije ' +
-      'v petih območnih enotah.',
-  },
-]
+const HOME_DESCRIPTION =
+  'Zgodovinski arhiv Ljubljana hrani arhivsko gradivo osrednje Slovenije ' +
+  'v petih območnih enotah.'
+
+export function meta({ data, location }: Route.MetaArgs) {
+  const units = data?.units?.initial?.data ?? []
+  const ogImageUrl = data?.homePage?.initial?.data?.hero?.image?.asset?.url ?? null
+  return [
+    ...buildMeta({
+      title: ZAL_NAME,
+      description: HOME_DESCRIPTION,
+      pathname: location.pathname,
+      ogImageUrl,
+      noSuffix: true,
+    }),
+    { 'script:ld+json': buildOrganizationJsonLd(units, ZAL_ORIGIN) },
+  ]
+}
 
 export async function loader({ request }: Route.LoaderArgs) {
   const [homePage, latestPosts, units, arhivalija] = await Promise.all([

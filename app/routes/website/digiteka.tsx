@@ -1,5 +1,6 @@
 import { Link, useLoaderData } from 'react-router'
 
+import { buildMeta } from '~/lib/meta'
 import { loadSanity } from '~/sanity/data.server'
 import { collectionsQuery } from '~/sanity/queries'
 
@@ -9,11 +10,12 @@ export async function loader({ request }: Route.LoaderArgs) {
   return loadSanity(request, collectionsQuery)
 }
 
-export function meta(): Route.MetaDescriptors {
-  return [
-    { title: 'Digiteka – Zgodovinski arhiv Ljubljana' },
-    { name: 'description', content: 'Digitalizirano arhivsko gradivo' },
-  ]
+export function meta({ location }: Route.MetaArgs) {
+  return buildMeta({
+    title: 'Digiteka',
+    description: 'Digitalizirano arhivsko gradivo Zgodovinskega arhiva Ljubljana.',
+    pathname: location.pathname,
+  })
 }
 
 export default function DigitekaPage() {

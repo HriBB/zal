@@ -2,6 +2,7 @@ import { Link, useLoaderData } from 'react-router'
 
 import type { Route } from './+types/arhivalija-meseca'
 
+import { buildMeta } from '~/lib/meta'
 import { loadSanity } from '~/sanity/data.server'
 import { arhivaListQuery } from '~/sanity/queries'
 
@@ -9,8 +10,12 @@ export async function loader({ request }: Route.LoaderArgs) {
   return loadSanity(request, arhivaListQuery)
 }
 
-export function meta() {
-  return [{ title: 'Arhivalija meseca — ZAL' }]
+export function meta({ location }: Route.MetaArgs) {
+  return buildMeta({
+    title: 'Arhivalija meseca',
+    description: 'Mesečna predstavitev arhivskega gradiva Zgodovinskega arhiva Ljubljana.',
+    pathname: location.pathname,
+  })
 }
 
 export default function ArhivalijaRoute() {
