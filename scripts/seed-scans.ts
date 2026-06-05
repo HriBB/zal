@@ -79,6 +79,13 @@ function saveMemo() {
 
 // ── Upload a single scan from disk ───────────────────────────────────────────
 
+// Sanity asset `label` rejects empty strings and very long values ("Validation
+// failed"). Trim, truncate, and omit entirely when empty.
+function safeLabel(alt: string | undefined): string | undefined {
+  const trimmed = alt?.trim()
+  return trimmed ? trimmed.slice(0, 200) : undefined
+}
+
 async function uploadScan(localPath: string, alt: string): Promise<string | null> {
   if (dry) return `dry-asset-${localPath}`
 
@@ -96,7 +103,7 @@ async function uploadScan(localPath: string, alt: string): Promise<string | null
       async () => {
         const buffer = readFileSync(absPath)
         const filename = basename(localPath)
-        const asset = await client.assets.upload('image', buffer, { filename, label: alt })
+        const asset = await client.assets.upload('image', buffer, { filename, label: safeLabel(alt) })
         return asset._id
       },
       { maxAttempts: 3, baseDelayMs: 500 },

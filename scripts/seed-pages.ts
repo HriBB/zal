@@ -20,6 +20,7 @@ import { createClient } from '@sanity/client'
 import { cleanSlugForPage, WP_SKIP_IDS, wpPageToPageDoc } from '../app/lib/wp-page.ts'
 import type { GalleryPageBlock, GalleryPageFigure, RichTextPageBlock } from '../app/lib/wp-page.ts'
 import { cutDiviFooter } from '../app/lib/wp-html.ts'
+import { withRetry } from '../app/lib/upload-retry.ts'
 import type { PortableTextNode } from '../app/lib/wp-html.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -122,6 +123,13 @@ function saveDiskMemo() {
   writeFileSync(GALLERY_MEMO_JSON, JSON.stringify(Object.fromEntries(diskMemo), null, 2))
 }
 
+// Sanity asset `label` rejects empty strings and very long values ("Validation
+// failed"). Trim, truncate, and omit entirely when empty.
+function safeLabel(alt: string | undefined): string | undefined {
+  const trimmed = alt?.trim()
+  return trimmed ? trimmed.slice(0, 200) : undefined
+}
+
 async function uploadFromDisk(localPath: string, alt: string): Promise<string | null> {
   if (dry) return null
   const cached = diskMemo.get(localPath)
@@ -136,7 +144,7 @@ async function uploadFromDisk(localPath: string, alt: string): Promise<string | 
   try {
     const buffer = readFileSync(absPath)
     const filename = basename(localPath)
-    const asset = await client.assets.upload('image', buffer, { filename, label: alt })
+    const asset = await client.assets.upload('image', buffer, { filename, label: safeLabel(alt) })
     diskMemo.set(localPath, asset._id)
     saveDiskMemo()
     return asset._id
@@ -165,7 +173,7 @@ async function uploadImage(url: string, alt: string): Promise<string | null> {
     const filename = url.split('/').pop()?.split('?')[0] ?? 'image.jpg'
     const asset = await client.assets.upload('image', buffer, {
       filename,
-      label: alt,
+      label: safeLabel(alt),
     })
     assetByUrl.set(url, asset._id)
     return asset._id
@@ -329,7 +337,8 @@ async function run() {
     if (dry) {
       console.log(`[dry] ${doc._id} parent=${doc.parent?._ref ?? 'root'}`)
     } else {
-      await client.createOrReplace(doc)
+      // Transient network errors (ETIMEDOUT/EHOSTUNREACH) must not kill the run.
+      await withRetry(() => client.createOrReplace(doc), { maxAttempts: 4, baseDelayMs: 1000 })
       if (++count % 10 === 0) console.log(`  [seed-pages] ${count} pages written…`)
     }
   }
@@ -357,7 +366,7 @@ async function run() {
     if (dry) {
       console.log(`[dry] ${doc._id} parent=${parent ?? 'root'}`)
     } else {
-      await client.createOrReplace(doc)
+      await withRetry(() => client.createOrReplace(doc), { maxAttempts: 4, baseDelayMs: 1000 })
       count++
     }
   }

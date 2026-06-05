@@ -13,6 +13,7 @@
  */
 
 import 'dotenv/config'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -178,6 +179,42 @@ const units: ArchiveUnitDoc[] = [
   },
 ]
 
+// ── Unit photos ───────────────────────────────────────────────────────────────
+// Historical photos from the variant-A prototype assets (approved as the
+// intended unit imagery). Uploads are content-hash deduplicated by Sanity, so
+// re-runs are idempotent. If the files are gone (prototype/ deleted after
+// issue #19 sign-off), existing photos on the documents are left untouched.
+
+const PHOTOS_DIR = join(__dirname, '..', 'prototype', 'assets')
+
+const unitPhotos: Record<string, { file: string; alt: string }> = {
+  'archiveUnit.ljubljana': { file: 'ljubljana-1903.jpg', alt: 'Ljubljana okoli leta 1903' },
+  'archiveUnit.kranj': { file: 'kranj-1909.jpg', alt: 'Kranj okoli leta 1909' },
+  'archiveUnit.novo-mesto': { file: 'novo-mesto-1920.jpg', alt: 'Novo mesto okoli leta 1920' },
+  'archiveUnit.skofja-loka': { file: 'skofja-loka-1910.jpg', alt: 'Škofja Loka okoli leta 1910' },
+  'archiveUnit.idrija': { file: 'idrija-1919.jpg', alt: 'Idrija okoli leta 1919' },
+}
+
+async function ensurePhoto(unitId: string): Promise<void> {
+  const photo = unitPhotos[unitId]
+  if (!photo) return
+  const absPath = join(PHOTOS_DIR, photo.file)
+  if (!existsSync(absPath)) {
+    console.warn(`  [photo] file missing, skipping: ${photo.file}`)
+    return
+  }
+  const asset = await client.assets.upload('image', readFileSync(absPath), {
+    filename: photo.file,
+    label: photo.alt,
+  })
+  // Additive: never overwrite a photo an editor has set.
+  await client
+    .patch(unitId)
+    .setIfMissing({ photo: { _type: 'image', asset: { _type: 'reference', _ref: asset._id } } })
+    .commit()
+  console.log(`  photo ensured: ${unitId} ← ${photo.file}`)
+}
+
 // ── Seed ─────────────────────────────────────────────────────────────────────
 
 async function seed() {
@@ -196,6 +233,8 @@ async function seed() {
       await client.createIfNotExists(unit)
       console.log(`createIfNotExists: ${unit._id}`)
     }
+
+    await ensurePhoto(unit._id)
   }
 
   console.log('Done.')

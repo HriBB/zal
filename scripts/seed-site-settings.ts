@@ -59,7 +59,7 @@ const doc = {
         { _key: 'nav-iskanje', _type: 'navChild', label: 'Iskanje gradiva', linkType: 'internal', href: '/za-uporabnike/iskanje-gradiva' },
         { _key: 'nav-digiteka-nav', _type: 'navChild', label: 'Digiteka', linkType: 'internal', href: '/digiteka' },
         { _key: 'nav-izdajanje', _type: 'navChild', label: 'Izdajanje dokumentov', linkType: 'internal', href: '/za-uporabnike/izdajanje-dokumentov' },
-        { _key: 'nav-cenik', _type: 'navChild', label: 'Cenik', linkType: 'internal', href: '/za-uporabnike/cenik' },
+        { _key: 'nav-cenik', _type: 'navChild', label: 'Cenik', linkType: 'internal', href: '/za-uporabnike/cenik-storitev' },
         { _key: 'nav-knjiznica', _type: 'navChild', label: 'Knjižnica', linkType: 'internal', href: '/za-uporabnike/knjiznica' },
         { _key: 'nav-ucne-ure', _type: 'navChild', label: 'Učne ure', linkType: 'internal', href: '/za-uporabnike/ucne-ure' },
         { _key: 'nav-programi', _type: 'navChild', label: 'Programi za vrtce in šole', linkType: 'internal', href: '/za-uporabnike/programi-za-vrtce-in-sole' },
@@ -119,7 +119,7 @@ const doc = {
   ],
 
   footerLinks: [
-    { _key: 'fl-iskanje', _type: 'footerLink', label: 'Iskanje /iskanje', linkType: 'internal', href: '/iskanje' },
+    { _key: 'fl-iskanje', _type: 'footerLink', label: 'Iskanje', linkType: 'internal', href: '/iskanje' },
     { _key: 'fl-enote', _type: 'footerLink', label: 'Enote', linkType: 'internal', href: '/enote' },
     { _key: 'fl-digiteka', _type: 'footerLink', label: 'Digiteka', linkType: 'internal', href: '/digiteka' },
     { _key: 'fl-kontakti', _type: 'footerLink', label: 'Kontakti', linkType: 'internal', href: '/o-arhivu/kontakti' },

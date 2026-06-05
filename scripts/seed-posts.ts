@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { createClient } from '@sanity/client'
 
 import { cutDiviFooter } from '../app/lib/wp-html.ts'
+import { withRetry } from '../app/lib/upload-retry.ts'
 import { wpPostToPostDoc } from '../app/lib/wp-post.ts'
 import type { PostSeedDoc } from '../app/lib/wp-post.ts'
 import type { PortableTextNode } from '../app/lib/wp-html.ts'
@@ -87,6 +88,13 @@ const CANONICAL_CATEGORIES = [
 
 // ── Image upload memo (URL → Sanity asset _id, in-memory) ────────────────────
 
+// Sanity asset `label` rejects empty strings and very long values ("Validation
+// failed"). Trim, truncate, and omit entirely when empty.
+function safeLabel(alt: string | undefined): string | undefined {
+  const trimmed = alt?.trim()
+  return trimmed ? trimmed.slice(0, 200) : undefined
+}
+
 const assetByUrl = new Map<string, string>()
 
 async function uploadImage(url: string, alt: string): Promise<string | null> {
@@ -102,7 +110,7 @@ async function uploadImage(url: string, alt: string): Promise<string | null> {
     }
     const buffer = Buffer.from(await res.arrayBuffer())
     const filename = basename(url.split('?')[0]!)
-    const asset = await client.assets.upload('image', buffer, { filename, label: alt })
+    const asset = await client.assets.upload('image', buffer, { filename, label: safeLabel(alt) })
     assetByUrl.set(url, asset._id)
     return asset._id
   } catch (err) {
@@ -214,7 +222,7 @@ async function run() {
     if (dry) {
       console.log(`[dry] category ${doc._id}`)
     } else {
-      await client.createOrReplace(doc)
+      await withRetry(() => client.createOrReplace(doc), { maxAttempts: 4, baseDelayMs: 1000 })
     }
   }
 
@@ -234,7 +242,11 @@ async function run() {
     if (dry) {
       console.log(`[dry] post ${doc._id as string} cats=${mapped.categories.map((c) => c._ref).join(',')}`)
     } else {
-      await client.createOrReplace(doc as Parameters<typeof client.createOrReplace>[0])
+      // Transient network errors (ETIMEDOUT/ECONNRESET) must not kill the run.
+      await withRetry(
+        () => client.createOrReplace(doc as Parameters<typeof client.createOrReplace>[0]),
+        { maxAttempts: 4, baseDelayMs: 1000 },
+      )
       if (++count % 20 === 0) console.log(`  [seed-posts] ${count} posts written…`)
     }
   }

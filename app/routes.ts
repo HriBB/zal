@@ -11,6 +11,7 @@ export default [
     route('novice/:slug', './routes/website/novice.$slug.tsx'),
     route('arhivalija-meseca', './routes/website/arhivalija-meseca.tsx'),
     // Archive units.
+    route('enote', './routes/website/enote.tsx'),
     route('enote/:slug', './routes/website/enote.$slug.tsx'),
     // Digiteka: digital collections.
     route('digiteka', './routes/website/digiteka.tsx'),
