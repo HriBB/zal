@@ -6,18 +6,20 @@
   "scripts": {
     "dev": "react-router dev",
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js",
+    "start": "NODE_ENV=production node -r dotenv/config node_modules/@react-router/serve/dist/cli.js ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "scrape": "node --experimental-strip-types scripts/scrape-galleries.ts",
     "seed": "node --experimental-strip-types scripts/seed-site-settings.ts",
+    "seed:pages": "node --experimental-strip-types scripts/seed-pages.ts",
     "lint": "eslint .",
     "format": "prettier --write \"app/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",
+    "@portabletext/react": "^6.2.0",
     "@react-router/node": "^7.14.0",
     "@react-router/serve": "^7.14.0",
     "@sanity/client": "^7.22.1",

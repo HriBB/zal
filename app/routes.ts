@@ -6,6 +6,9 @@ export default [
   // Front-end website (shared Header + Footer).
   layout('./routes/website/layout.tsx', [
     index('./routes/website/home.tsx'),
+    // Catch-all page route — resolves nested pages via parent chain (ADR-0004).
+    // Must come last so specific routes above take priority.
+    route('*', './routes/website/page.tsx'),
   ]),
   // Embedded Sanity Studio.
   route('studio/*', './routes/studio.tsx'),

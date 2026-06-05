@@ -54,3 +54,48 @@ export const siteSettingsQuery = defineSanityQuery<SiteSettings>(
     externalArchiveLinks[]{_key, label, url},
   }`,
 )
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+export type BreadcrumbItem = {
+  title: string
+  slug: string
+}
+
+export type PageData = {
+  _id: string
+  title: string
+  slug: string
+  parentSlug: string | null
+  grandParentSlug: string | null
+  greatGrandParentSlug: string | null
+  breadcrumbs: BreadcrumbItem[]
+  blocks: Array<Record<string, unknown>>
+}
+
+export const pageQuery = defineSanityQuery<PageData | null, { slug: string }>(
+  `*[_type == "page" && slug.current == $slug][0]{
+    _id,
+    title,
+    "slug": slug.current,
+    "parentSlug": parent->slug.current,
+    "grandParentSlug": parent->parent->slug.current,
+    "greatGrandParentSlug": parent->parent->parent->slug.current,
+    "breadcrumbs": [
+      parent->parent->parent->{title, "slug": slug.current},
+      parent->parent->{title, "slug": slug.current},
+      parent->{title, "slug": slug.current},
+    ][defined(title)],
+    blocks[]{
+      _type,
+      _key,
+      body[]{
+        ...,
+        _type == "figure" => {
+          ...,
+          asset->{_id, url, metadata{lqip, dimensions}}
+        }
+      }
+    }
+  }`,
+)
