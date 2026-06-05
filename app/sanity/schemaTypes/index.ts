@@ -5,7 +5,9 @@ import { richTextBlockType } from './blocks/richTextBlock'
 import { tableCellType, tableBlockType, tableRowType } from './blocks/tableBlock'
 import { embedBlockType } from './blocks/embedBlock'
 import { galleryBlockType } from './blocks/galleryBlock'
+import { categoryType } from './documents/category'
 import { pageType } from './documents/page'
+import { postType } from './documents/post'
 import { siteSettingsType } from './singletons/siteSettings'
 
 export const schemaTypes: SchemaTypeDefinition[] = [
@@ -19,7 +21,9 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   embedBlockType,
   galleryBlockType,
   // Documents
+  categoryType,
   pageType,
+  postType,
   siteSettingsType,
 ]
 

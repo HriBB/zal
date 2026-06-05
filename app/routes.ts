@@ -6,6 +6,10 @@ export default [
   // Front-end website (shared Header + Footer).
   layout('./routes/website/layout.tsx', [
     index('./routes/website/home.tsx'),
+    // Posts + categories.
+    route('novice', './routes/website/novice.tsx'),
+    route('novice/:slug', './routes/website/novice.$slug.tsx'),
+    route('arhivalija-meseca', './routes/website/arhivalija-meseca.tsx'),
     // Catch-all page route — resolves nested pages via parent chain (ADR-0004).
     // Must come last so specific routes above take priority.
     route('*', './routes/website/page.tsx'),

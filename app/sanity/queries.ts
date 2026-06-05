@@ -1,5 +1,30 @@
 import { defineSanityQuery } from '~/sanity/data'
 
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+const BLOCKS_PROJECTION = `
+  blocks[]{
+    _type,
+    _key,
+    _type == "richTextBlock" => {
+      body[]{
+        ...,
+        _type == "figure" => {
+          ...,
+          asset->{_id, url, metadata{lqip, dimensions}}
+        }
+      }
+    },
+    _type == "tableBlock" => {
+      rows[]{_key, isHeader, cells[]{_key, text}}
+    },
+    _type == "embedBlock" => { url },
+    _type == "galleryBlock" => {
+      figures[]{_key, alt, caption, asset->{_id, url, metadata{lqip, dimensions}}}
+    }
+  }
+`
+
 export type NavChild = {
   _key: string
   label: string
@@ -86,36 +111,93 @@ export const pageQuery = defineSanityQuery<PageData | null, { slug: string }>(
       parent->parent->{title, "slug": slug.current},
       parent->{title, "slug": slug.current},
     ][defined(title)],
-    blocks[]{
-      _type,
-      _key,
-      _type == "richTextBlock" => {
-        body[]{
-          ...,
-          _type == "figure" => {
-            ...,
-            asset->{_id, url, metadata{lqip, dimensions}}
-          }
-        }
-      },
-      _type == "tableBlock" => {
-        rows[]{
-          _key,
-          isHeader,
-          cells[]{_key, text}
-        }
-      },
-      _type == "embedBlock" => {
-        url
-      },
-      _type == "galleryBlock" => {
-        figures[]{
-          _key,
-          alt,
-          caption,
-          asset->{_id, url, metadata{lqip, dimensions}}
-        }
-      }
-    }
+    ${BLOCKS_PROJECTION}
   }`,
+)
+
+// ── Post / Category ───────────────────────────────────────────────────────────
+
+export type CategoryRef = {
+  _id: string
+  title: string
+  slug: string
+}
+
+export type MainImageData = {
+  alt: string
+  asset: {
+    _id: string
+    url: string
+    metadata: { lqip: string | null; dimensions: { width: number; height: number } | null }
+  } | null
+}
+
+export type PostSummary = {
+  _id: string
+  title: string
+  slug: string
+  date: string
+  categories: CategoryRef[]
+  mainImage: MainImageData | null
+}
+
+export type PostData = PostSummary & {
+  blocks: Array<Record<string, unknown>>
+}
+
+export type PostListData = {
+  posts: PostSummary[]
+  total: number
+}
+
+export const categoriesQuery = defineSanityQuery<CategoryRef[]>(
+  `*[_type == "category"] | order(title asc){
+    "_id": _id,
+    title,
+    "slug": slug.current
+  }`,
+)
+
+const MAIN_IMAGE_PROJECTION = `mainImage{alt, asset->{_id, url, metadata{lqip, dimensions}}}`
+
+export const postListQuery = defineSanityQuery<
+  PostListData,
+  { cat: string; offset: number; lastIndex: number }
+>(
+  `{
+    "posts": *[_type == "post" && ($cat == "" || $cat in categories[]->slug.current)]
+      | order(date desc)[$offset..$lastIndex]{
+        _id,
+        title,
+        "slug": slug.current,
+        date,
+        "categories": categories[]->{_id, title, "slug": slug.current},
+        ${MAIN_IMAGE_PROJECTION}
+      },
+    "total": count(*[_type == "post" && ($cat == "" || $cat in categories[]->slug.current)])
+  }`,
+)
+
+export const postQuery = defineSanityQuery<PostData | null, { slug: string }>(
+  `*[_type == "post" && slug.current == $slug][0]{
+    _id,
+    title,
+    "slug": slug.current,
+    date,
+    "categories": categories[]->{_id, title, "slug": slug.current},
+    ${MAIN_IMAGE_PROJECTION},
+    ${BLOCKS_PROJECTION}
+  }`,
+)
+
+export const arhivaListQuery = defineSanityQuery<PostSummary[]>(
+  `*[_type == "post" && "arhivalija-meseca" in categories[]->slug.current]
+    | order(date desc){
+      _id,
+      title,
+      "slug": slug.current,
+      date,
+      "categories": categories[]->{_id, title, "slug": slug.current},
+      ${MAIN_IMAGE_PROJECTION}
+    }`,
 )

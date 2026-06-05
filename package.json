@@ -14,6 +14,7 @@
     "scrape": "node --experimental-strip-types scripts/scrape-galleries.ts",
     "seed": "node --experimental-strip-types scripts/seed-site-settings.ts",
     "seed:pages": "node --experimental-strip-types scripts/seed-pages.ts",
+    "seed:posts": "node --experimental-strip-types scripts/seed-posts.ts",
     "lint": "eslint .",
     "format": "prettier --write \"app/**/*.{ts,tsx}\""
   },

@@ -1,4 +1,4 @@
-import { CogIcon } from '@sanity/icons'
+import { CogIcon, DocumentIcon, TagIcon } from '@sanity/icons'
 
 import type {
   DefaultDocumentNodeResolver,
@@ -25,6 +25,17 @@ export const structure: StructureResolver = (S) =>
     .title('Vsebina')
     .items([
       singleton(S, 'siteSettings', 'Nastavitve strani', CogIcon),
+      S.divider(),
+      S.listItem()
+        .id('post')
+        .title('Novice')
+        .icon(DocumentIcon)
+        .child(S.documentTypeList('post').title('Novice')),
+      S.listItem()
+        .id('category')
+        .title('Kategorije')
+        .icon(TagIcon)
+        .child(S.documentTypeList('category').title('Kategorije')),
     ])
 
 export const defaultDocumentNode: DefaultDocumentNodeResolver = (S) => S.document()
