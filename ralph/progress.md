@@ -547,3 +547,49 @@ Second run: 0 new uploads (all from memo). Idempotency confirmed.
   via seed-pages / galleryBlock in issue #8).
 - The `[@portabletext/react] Unknown block type "figure"` console warning from prior iterations
   persists — cosmetic only (figure inside richTextBlock body not rendered). Still deferred.
+
+---
+
+## 2026-06-05 — Issue #13: Homepage variant A (singleton + auto-fed sections)
+
+**Built** the full homepage vertical slice:
+
+- **`app/sanity/schemaTypes/singletons/homePage.ts`**: `homePageType` singleton — hero
+  (heading, lead, image) + serviceCards array (title, description, href, image). Registered
+  in `schemaTypes/index.ts` and Studio desk (`HomeIcon`, singleton entry). `SINGLETONS`
+  extended to include `'homePage'`.
+- **`app/sanity/queries.ts`**: `homePageQuery` (singleton), `homeLatestPostsQuery`
+  (latest 6 posts, order desc), `homeArhavalijaQuery` (newest arhivalija-meseca post).
+  `ArchiveUnitSummary` extended with `photo` field; `archiveUnitsQuery` updated to
+  include `photo{alt, asset->}` — unit strip now shows photos without a separate query.
+- **`app/routes/website/home.tsx`**: Full variant A design — red utility bar, hero
+  section with full-bleed photo fallback + search form (`Form` posting to `/iskanje`,
+  query param `q`), 8-card service grid (2→4 responsive cols), news grid with
+  category chips (6 latest posts), unit strip (5 units → `/enote/:slug`),
+  arhivalija-meseca CTA band (newest post auto-fed, hides when none). All sections
+  use `aria-label` for Playwright targeting. Four parallel `loadSanity` calls in
+  loader. Fully responsive with Tailwind v4 tokens.
+- **`scripts/seed-home-page.ts`**: Seeds `homePage` with variant-A content — hero
+  heading/lead, 8 service cards with Slovenian titles and internal hrefs derived
+  from the old site IA. `createIfNotExists` default; `SEED_FORCE=1` overwrites.
+  `pnpm seed:home` added.
+
+**TDD**: RED→GREEN on `homePage` schema shape (4 tests: type name, hero field,
+serviceCards field, hero subfields, card subfields).
+
+**Results**: `pnpm typecheck` ✓, `pnpm test` ✓ (17 files, 173 tests), `pnpm build` ✓,
+`pnpm seed:home` ✓ (homePage created), `pnpm test:e2e` ✓ (35 tests: 30 prior + 5 new
+home — hero+search, service cards, news grid, unit strip ×5, arhivalija band).
+
+**Deferred / notes for next iteration**:
+- Hero image not seeded (needs a real historic photo). Hero renders a dark `bg-stone-800`
+  placeholder until an editor uploads via Studio. No schema or route change needed.
+- Unit photos not yet seeded (units have no photo in the WP dump). Unit strip renders
+  grey `bg-stone-300` placeholders. Same fix as hero: editors upload via Studio.
+- `archiveUnitsQuery` now includes `photo` — footer accordion (which uses units from the
+  layout loader) also gets the photo field, though the accordion UI doesn't render it.
+  Harmless extra data; no change to footer component required.
+- The utility bar contact info (hours, email, phone) is hardcoded in the component.
+  If editors need to control this, move it to `siteSettings` in a later iteration.
+- Search form posts to `/iskanje` — route not yet implemented (issue #14). Form wiring
+  is complete; submitting will 404 until issue #14 lands.
