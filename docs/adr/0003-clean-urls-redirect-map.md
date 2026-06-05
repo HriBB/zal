@@ -1,0 +1,3 @@
+# Clean URL tree + 301 redirect map from old WordPress paths
+
+The new site uses a clean Slovenian URL tree (`/o-arhivu/...`, `/novice/:slug`, `/digiteka/:collection/:item`, `/enote/:slug`) instead of the legacy WP paths (`/domaca-stran-1/o-arhivu-2/...`, `/project/...`). The seed phase emits a `redirects.json` (old path → new path) checked into the repo; the catch-all route consults it and issues 301s before falling through to 404. Editors cannot add redirects in Studio — accepted, since new redirects are rare after launch. Rationale: an archive lives off long-tail search links; dropping ten years of indexed URLs is not acceptable, and keeping the ugly legacy tree permanently was the only other option.

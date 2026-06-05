@@ -1,0 +1,20 @@
+node_modules/
+build/
+dist/
+.react-router/
+.tmp/
+coverage/
+test-results/
+playwright-report/
+
+# secrets — Sanity tokens + session secret
+.env
+.env.*
+!.env.example
+
+# ralph loop noise
+ralph/iteration-*.log
+ralph/seed-asset-memo.json
+
+.DS_Store
+*.log
